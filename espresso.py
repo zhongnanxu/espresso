@@ -13,43 +13,17 @@ from collections import Iterable
 from subprocess import Popen, PIPE
 
 import numpy as np
-from ase.constraints import FixAtoms, FixScaled
 
 import ase
 from ase.calculators.general import Calculator
+from ase.constraints import FixAtoms, FixScaled
 from ase import Atom, Atoms
 
-#############################################
-# Espresso Exceptions
-#############################################        
-class EspressoQueued(Exception):
-    def __init__(self, msg='Queued', cwd=None):
-        self.msg = msg
-        self.cwd = cwd
-
-    def __str__(self):
-        return repr(self.cwd)
-
-class EspressoSubmitted(Exception):
-    def __init__(self, jobid):
-        self.jobid = jobid
-    def __str__(self):
-        return repr(self.jobid)
-
-class EspressoRunning(Exception):
-    pass
-
-class EspressoNotFinished(Exception):
-    def __init__(self, message=''):
-        self.message = message
-    def __str__(self):
-        return self.message
-
-class EspressoNotConverged(Exception):
-    pass
-
-class EspressoUnknownState(Exception):
-    pass
+# Internal imports
+from espressorc import *
+from espresso_PPs import *
+from espresso_exceptions import *
+from espresso_traj import *
 
 # These are all of the keys organized by what namespace they are under
 
@@ -139,75 +113,11 @@ class Espresso(Calculator):
     '''This is an ase.calculator class that allows the use of quantum-espresso
     through ase.'''
     
-    # This is a list of the current atoms supported and default names for their
-    # pseudopotentials. If you want to change the pseudopotential, just redefine
-    # the Espresso.PPs dictionary object prior to running the calculation
+    # Load the list of pseudo potentials from the ESPRESSO_PPs variable
+    # found in the espresso_PPs.py file
 
-    PPs = {'Ag': ('ag_pbe_v1.uspp.F.UPF', 20),
-           'Al': ('al_pbe_v1.uspp.F.UPF', 3),
-           'As': ('as_pbe_v1.uspp.F.UPF', 5),
-           'Au': ('au_pbe_v1.uspp.F.UPF', 11),
-           'Ba': ('ba_pbe_v1.uspp.F.UPF', 10),
-           'Be': ('be_pbe_v1.uspp.F.UPF', 4),
-           'Bi': ('bi_pbe_v1.uspp.F.UPF', 14),
-           'B': ('b_pbe_v1.01.uspp.F.UPF', 3),
-           'Br': ('br_pbe_v1.uspp.F.UPF', 7),
-           'Ca': ('ca_pbe_v1.uspp.F.UPF', 10),
-           'Cd': ('cd_pbe_v1.uspp.F.UPF', 11),
-           'Cl': ('cl_pbe_v1.uspp.F.UPF', 7),
-           'Co': ('co_pbe_v1.uspp.F.UPF', 16),
-           'C': ('c_pbe_v1.01.uspp.F.UPF', 4),
-           'Cr': ('cr_pbe_v1.uspp.F.UPF', 13),
-           'Cs': ('cs_pbe_v1.uspp.F.UPF', 9),
-           'Cu': ('cu_pbe_v1.uspp.F.UPF', 18),
-           'Fe': ('fe_pbe_v1.uspp.F.UPF', 15),
-           'F': ('f_pbe_v1.uspp.F.UPF', 7),
-           'Ga': ('ga_pbe_v1.uspp.F.UPF', 20),
-           'Ge': ('ge_pbe_v1.uspp.F.UPF', 14),
-           'Hf': ('hf_pbe_v1.uspp.F.UPF', 10), #'hf_pbe_plus4_v1.uspp.F.UPF' alt
-           'Hg': ('hg_pbe_v1.uspp.F.UPF', 12),
-           'H': ('h_pbe_v1.uspp.F.UPF', 1),
-           'In': ('in_pbe_v1.uspp.F.UPF', 11),
-           'I': ('i_pbe_v1.uspp.F.UPF', 7),
-           'Ir': ('ir_pbe_v1.uspp.F.UPF', 14),
-           'K': ('k_pbe_v1.uspp.F.UPF', 8),
-           'La': ('la_pbe_v1.uspp.F.UPF', 11),
-           'Li': ('li_pbe_v1.uspp.F.UPF', 3),
-           'Mg': ('mg_pbe_v1.uspp.F.UPF', 10),
-           'Mn': ('mn_pbe_v1.uspp.F.UPF', 14),
-           'Mo': ('mo_pbe_v1.uspp.F.UPF', 14),
-           'Na': ('na_pbe_v1.uspp.F.UPF', 9),
-           'Nb': ('nb_pbe_v1.uspp.F.UPF', 13),
-           'Ni': ('ni_pbe_v1.uspp.F.UPF', 16),
-           'N': ('n_pbe_v1.01.uspp.F.UPF', 5),
-           'O': ('o_pbe_v1.01.uspp.F.UPF', 6),
-           'Os': ('os_pbe_v1.uspp.F.UPF', 16),
-           'Pb': ('pb_pbe_v1.uspp.F.UPF', 14),
-           'Pd': ('pd_pbe_v1.uspp.F.UPF', 16),
-           'P': ('p_pbe_v1.uspp.F.UPF', 5),
-           'Pt': ('pt_pbe_v1.uspp.F.UPF', 16),
-           'Rb': ('rb_pbe_v1.uspp.F.UPF', 9),
-           'Re': ('re_pbe_v1.uspp.F.UPF', 15),
-           'Rh': ('rh_pbe_v1.uspp.F.UPF', 15),
-           'Ru': ('ru_pbe_v1.uspp.F.UPF', 15),
-           'Sb': ('sb_pbe_v1.uspp.F.UPF', 14),
-           'Sc': ('sc_pbe_v1.uspp.F.UPF', 11),
-           'Se': ('se_pbe_v1.uspp.F.UPF', 6),
-           'Si': ('si_pbe_v1.uspp.F.UPF', 4),
-           'Sn': ('sn_pbe_v1.uspp.F.UPF', 13),
-           'S': ('s_pbe_v1.uspp.F.UPF', 6),
-           'Sr': ('sr_pbe_v1.uspp.F.UPF', 10),
-           'Ta': ('ta_pbe_v1.uspp.F.UPF', 13),
-           'Tc': ('tc_pbe_v1.uspp.F.UPF', 14),
-           'Te': ('te_pbe_v1.uspp.F.UPF', 6),
-           'Ti': ('ti_pbe_v1.uspp.F.UPF', 11),
-           'Tl': ('tl_pbe_v1.uspp.F.UPF', 13),
-           'V': ('v_pbe_v1.uspp.F.UPF', 13),
-           'W': ('w_pbe_v1.uspp.F.UPF', 14),
-           'Y': ('y_pbe_v1.uspp.F.UPF', 11),
-           'Zn': ('zn_pbe_v1.uspp.F.UPF', 20),
-           'Zr': ('zr_pbe_v1.uspp.F.UPF', 12)}    
-
+    PPs = ESPRESSO_PPs
+    
     def __init__(self, espressodir=None, **kwargs):
         
         if espressodir == None:
@@ -278,7 +188,7 @@ class Espresso(Calculator):
                              'offset': False}                                     
 
         # Set default run commands
-        self.run_params = {'executable': '/home/opt/el6/dl160g6/espresso-5.0.3-dl160g6-tm-gfortran-openmpi-1.6.3-acml-4.4.0-1/bin/pw.x',
+        self.run_params = {'executable': ESPRESSORC['executable'],
                            'options': '-joe',
                            'walltime': '50:00:00',
                            'nodes': 1,
@@ -291,7 +201,7 @@ class Espresso(Calculator):
 
         # Define a default folder for where the pseudopotentials are held
         if self.string_params['pseudo_dir'] == None:
-            PPpath = '/home/camp/zhonxu/pseudo'
+            PPpath = ESPRESSORC['PPpath']
             self.string_params['pseudo_dir'] = PPpath        
             
         # If it is a clean folder
@@ -942,13 +852,13 @@ mpirun -np {9:d} {3} -inp {4} -npool {7} | tee {6}
         def read_energy(line):
             if line.lower().startswith('!    total energy'):
                 energy_free = float(line.split()[-2])
-                return energy_free * 13.605698066 # Rybergs to energy conversion
+                return energy_free * 13.605698066 # Rybergs to eV
             return None
 
         def read_hubbard_energy(line):
             if line.lower().startswith('     hubbard energy'):
                 energy_hubbard = float(line.split()[-2])
-                return energy_hubbard * 13.605698066 # Rybergs to energy conversion
+                return energy_hubbard * 13.605698066 # Rybergs to eV
 
         def read_total_force(line):
             if line.lower().startswith('     total force'):
@@ -1661,52 +1571,6 @@ cd $PBS_O_WORKDIR
             f.close()
 
         return
-
-
-
-import pickle
-from ase import io
-
-class espressotraj:
-    '''This trajectory class is modeled off of the vasptraj file. To use it, use these lines of code
-    traj = espressotraj()
-    traj.convert()
-    os.system('ag out.traj; rm out.traj')
-    '''
-    def __init__(self, trajectory=None):
-        with Espresso(None) as calc:
-            self.atoms = calc.initial_atoms.copy()
-        self.calc = calc
-        if not trajectory:
-            self.trajectory = 'out.traj'
-        else:
-            self.trajectory = trajectory
-        self.out = io.trajectory.PickleTrajectory(self.trajectory, mode='w')
-        self.energies = calc.all_energies
-        self.forces = calc.all_forces
-        self.all_pos = calc.all_pos
-        if len(calc.all_cells) != len(calc.all_pos):
-            # Remember that these arrays are list objeects, not numpy.arrays
-            self.all_cells = calc.all_cells * len(calc.all_pos)
-        else:
-            self.all_cells = calc.all_cells
-        if len(self.energies) > len(self.all_pos):
-            self.energies.pop()
-            self.forces.pop()
-
-    def convert(self):
-        for i, energy in enumerate(self.energies):
-            if i == 0:
-                self.out.write_header(self.atoms)
-            d = {'positions': self.all_pos[i],
-                 'cell': self.all_cells[i],
-                 'momenta': None,
-                 'energy': self.energies[i],
-                 'forces': self.forces[i],
-                 'stress': None}
-            pickle.dump(d, self.out.fd, protocol=-1)
-
-        self.out.fd.close()
 
 def run_series(name, calcs, walltime='50:00:00', ppn=1, nodes=1, mem='2GB',
                pools=1, save=True, test=False):
