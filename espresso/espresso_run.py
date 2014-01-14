@@ -4,26 +4,6 @@
 
 from espresso import *
 
-def pick_processor(self):
-    '''The point of this function to take in the amount of processors
-    requested and figure out how many nodes and which processor we need'''
-    ppn = self.run_params['ppn']
-    if ppn <= 4:
-        self.run_params['processor'] = 'opteron4'
-    elif ppn <= 8:
-        self.run_params['processor'] = 'xeon8'
-    elif ppn <= 16:
-        self.run_params['processor'] = 'xeon16'
-    elif ppn == 32:
-        self.run_params['processor'] = 'xeon16'
-        self.run_params['nodes'] = 2
-        self.run_params['ppn'] = 16
-    else:
-        assert 'Pick a correct number of nodes!'
-    return
-
-Espresso.pick_processor = pick_processor
-    
 def run(self, series=False):
     """Submits a calculation to the queue
 
@@ -42,33 +22,32 @@ def run(self, series=False):
     if self.run_params['jobname'] == None:
         self.run_params['jobname'] = self.espressodir
 
-    self.pick_processor()
-    np = self.run_params['nodes'] * self.run_params['ppn']
-
     if (self.run_params['ppn'] == 1 and self.run_params['nodes'] == 1):
         script = '''#!/bin/bash
-#PBS -l walltime={0} 
-#PBS -l nodes={1:d}:ppn={2:d}:{7}
+#PBS -l walltime={0}
+#PBS -l nodes={1:d}:ppn={2:d}
+#PBS -l mem={7}
 #PBS -j oe
 #PBS -N {6}
-
+            
 cd $PBS_O_WORKDIR
 {3} < {4} | tee {5}
 '''.format(self.run_params['walltime'], self.run_params['nodes'],
-       self.run_params['ppn'], runscript, in_file, out_file,
-       self.run_params['jobname'], self.run_params['processor'])
+           self.run_params['ppn'], runscript, in_file, out_file,
+           self.run_params['jobname'], self.run_params['mem'])
     else:
-        script = '''#!/bin/bash
+            script = '''#!/bin/bash
 #PBS -l walltime={0}
-#PBS -l nodes={1:d}:ppn={2:d}:{8}
+#PBS -l nodes={1:d}:ppn={2:d}
+#PBS -l mem={8}
 #PBS -j oe
 #PBS -N {5}
 
 cd $PBS_O_WORKDIR
-mpirun -np {9:d} {3} -inp {4} -npool {7} | tee {6}
+mpirun -np {2:d} {3} -inp {4} -npool {7} | tee {6}
 '''.format(self.run_params['walltime'], self.run_params['nodes'],
-       self.run_params['ppn'], runscript, in_file, self.run_params['jobname'],
-       out_file, self.run_params['pools'], self.run_params['processor'], np)
+           self.run_params['ppn'], runscript, in_file, self.run_params['jobname'],
+           out_file, self.run_params['pools'], self.run_params['mem'])
 
     if self.string_params['disk_io'] == 'none':
         script += 'eclean\n# end'
@@ -92,11 +71,11 @@ mpirun -np {9:d} {3} -inp {4} -npool {7} | tee {6}
     if series == False:
         raise EspressoSubmitted(out)
     else:
-        return
+        return    
 
 Espresso.run = run
 
-def run_series(name, calcs, walltime='50:00:00', ppn=1, nodes=1, mem='2GB',
+def run_series(name, calcs, walltime='168:00:00', ppn=1, nodes=1, mem='2GB',
                pools=1, save=True, test=False):
     '''The point of this function is to create a script that runs a bunch of
     calculations in series. After a calculation is done, it'll move the necessary
@@ -162,8 +141,6 @@ def run_series(name, calcs, walltime='50:00:00', ppn=1, nodes=1, mem='2GB',
     else:
         move = 'mv'
 
-    np = nodes * ppn
-        
     # The beginning of the code will be different depending on whether we need a restart
     if len(done_dirs) == 0:
         if (ppn == 1 and nodes == 1):            
@@ -173,7 +150,7 @@ def run_series(name, calcs, walltime='50:00:00', ppn=1, nodes=1, mem='2GB',
         else:
             script += '''cd {0}
 mpirun -np {1} {2} -inp {3}.in -npool {4} | tee {3}.out
-\n'''.format(dirs[0], np, executables[0], names[0], pools)
+\n'''.format(dirs[0], ppn, executables[0], names[0], pools)
 
     else:
         if (ppn == 1 and nodes == 1):
@@ -187,7 +164,7 @@ cd {2}
 {1} pwscf.* {2}
 cd {1}
 mpirun -np {3} {4} -inp {5}.in -npool {6} | tee {5}.out
-\n'''.format(done_dirs[-1], move, dirs[0], np, executables[0], names[0], pools)
+\n'''.format(done_dirs[-1], move, dirs[0], ppn, executables[0], names[0], pools)
             
     # Now do the rest of the calculations
     if (ppn == 1 and nodes == 1):                    
@@ -202,7 +179,7 @@ cd {1}
             script +='''{0} pwscf.* {1}
 cd {1}
 mpirun -np {2} {3} -inp {4}.in -npool {5} | tee {4}.out
-\n'''.format(move, d, np, r, n, pools)
+\n'''.format(move, d, ppn, r, n, pools)
 
         
     if test == False:
@@ -225,4 +202,5 @@ mpirun -np {2} {3} -inp {4}.in -npool {5} | tee {4}.out
 
     os.chdir(cwd)
 
-    return    
+    return 
+
