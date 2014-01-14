@@ -12,6 +12,6 @@ Clone the repository and make the =espresso= directory in your $PYTHONPATH varia
 
 * Configurations
 Before using =espresso=, you must edit the espressorc.py and espresso_PPs.py file. 
-- You must give a link to the =pw.x=, Quantum-Espresso executable you are currently using. Edit the ESPRESSORC['executable'] variable in the espressorc.py file to do this
+- You must give a link to the =pw.x=, Quantum-Espresso executable you are currently using. Edit the ESPRESSORC['PP_path'] variable in the espressorc.py file to do this
 - Edit the link to Pseudopotentials. This is the ESPRESSORC['executable'] variable.
 - Edit the names of the Pseudopotential files found in espresso_PPs.py
