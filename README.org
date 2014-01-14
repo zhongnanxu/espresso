@@ -1,0 +1,17 @@
+#+TITLE: =espresso=: A python/ASE wrapper for the Quantum-Espresso code.
+
+This is a python module that allows ASE to be used with Quantum-Espresso.
+
+* Installation
+Clone the repository and make the =espresso= directory in your $PYTHONPATH variable.
+
+* Requirements
+- At least python 2.5 is required to allow the context manager (=with= statement). 
+- =numpy= and =scipy= are required
+- The latest installation of =ASE= is recommended. This can be found at https://wiki.fysik.dtu.dk/ase/
+
+* Configurations
+Before using =espresso=, you must edit the espressorc.py and espresso_PPs.py file. 
+- You must give a link to the =pw.x=, Quantum-Espresso executable you are currently using. Edit the ESPRESSORC['executable'] variable in the espressorc.py file to do this
+- Edit the link to Pseudopotentials. This is the ESPRESSORC['executable'] variable.
+- Edit the names of the Pseudopotential files found in espresso_PPs.py
