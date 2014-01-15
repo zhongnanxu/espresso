@@ -299,7 +299,7 @@ class Espresso(Calculator):
         self.old_int_params['nbnd'] = int(nbands * 1.5) # This is to make this backwards compatitble
 
         # For working on the niflheim cluster where large files should be stored
-        # somewhere else
+        # somewhere else. 
         if self.string_params['wfcdir'] == True:
             self.wfcdir = os.path.abspath(self.espressodir).replace('camp', 'niflheim2')
             if not os.path.isdir(self.wfcdir):
