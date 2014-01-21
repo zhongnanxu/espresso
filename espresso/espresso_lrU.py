@@ -38,7 +38,7 @@ def initialize_lrU(self, patoms):
 
 Espresso.initialize_lrU = initialize_lrU
     
-def run_scf(self, patoms):
+def run_scf(self, patoms, center=True):
     '''The purpose of this function is to create separate folders for each
     atom that one needs to perturb and then run the self-consistent calculations.
     A couple of things this function needs to do...
@@ -68,9 +68,10 @@ def run_scf(self, patoms):
                 tags.append(0)
         self.initialize_atoms(tags=tags)
         self.int_params['ntyp'] = len(self.unique_set)
-        pos = self.atoms.get_positions()
-        trans = pos[sort.index(key)]
-        self.atoms.translate(-trans)
+        if center == True:
+            pos = self.atoms.get_positions()
+            trans = pos[sort.index(key)]
+            self.atoms.translate(-trans)
         self.filename = original_filename + '-{0:d}-pert'.format(i)
         if not os.path.isdir(self.filename):
             os.makedirs(self.filename)
@@ -86,7 +87,7 @@ def run_scf(self, patoms):
 Espresso.run_scf = run_scf
     
 def run_perts(self, indexes, alphas=(-0.15, -0.07, 0, 0.07, 0.15),
-              test=False, walltime='50:00:00', ppn=1, pools=1, mem='2GB'):
+              test=False, walltime='50:00:00', mem='2GB'):
     '''The purpose of this to to run perturbations following the scf
     calculations that were run with the self.run_scf command.'''
 
@@ -101,7 +102,7 @@ def run_perts(self, indexes, alphas=(-0.15, -0.07, 0, 0.07, 0.15),
             pass
         self.run_params['jobname']  = self.espressodir + '-{0:d}'.format(i)
         self.run_pert(alphas=alphas, index=ind, test=test, walltime=walltime,
-                      ppn=ppn, pools=pools, mem=mem)
+                      mem=mem)
         os.chdir(cwd)
     return
 
@@ -220,7 +221,7 @@ def calc_Us(self, patoms, alphas=(-0.15, -0.07, 0, 0.07, 0.15), test=False, sc=1
 
     return
 
-Espresso.run_perts = run_perts
+Espresso.calc_Us = calc_Us
     
 def write_pert(self, alphas=(-0.15, -0.07, 0.0, 0.07, 0.15,), index=1, parallel=False):
     '''The purpose of this function is to calculate the linear response U
@@ -298,7 +299,7 @@ def write_pert(self, alphas=(-0.15, -0.07, 0.0, 0.07, 0.15,), index=1, parallel=
 Espresso.write_pert = write_pert
     
 def run_pert(self, alphas=(-0.15, -0.07, 0, 0.07, 0.15), index=1, test=False,
-             walltime='50:00:00', ppn=1, pools=1, mem='2GB'):
+             walltime='50:00:00', mem='2GB'):
     '''Now we create the runscript that performs the calculations. This will
     be tricky because we need to write a script that copies the saved files
     from the previous calculation to be used in these perturbation calculations.
@@ -317,18 +318,21 @@ def run_pert(self, alphas=(-0.15, -0.07, 0, 0.07, 0.15), index=1, test=False,
 
     run_file_name = self.filename + '.run'
 
+    self.pick_processor()
+    np = self.run_params['nodes'] * self.run_params['ppn']
+    
     script = '''#!/bin/bash
 #PBS -l walltime={0}
-#PBS -l nodes={1:d}:ppn={2:d}
-#PBS -l mem={4}
+#PBS -l nodes={1:d}:ppn={2:d}:{4}
 #PBS -j oe
 #PBS -N {3}
 cd $PBS_O_WORKDIR
-'''.format(walltime, self.run_params['nodes'], ppn, self.run_params['jobname'], mem)
+'''.format(walltime, self.run_params['nodes'], self.run_params['ppn'],
+           self.run_params['jobname'], self.run_params['processor'])
 
     run_cmd = self.run_params['executable']
 
-    if ppn == 1:
+    if self.run_params['ppn'] == 1:
         for alpha in run_alphas:
             run_script = '''cp -r pwscf.* alpha_{0}/
 {1} < alpha_{0}/alpha_{0}.in > results/alpha_{0}.out
@@ -340,7 +344,7 @@ rm -fr alpha_{0}/pwscf.*
             run_script = '''cp -r pwscf.* alpha_{0}/
 mpirun -np {1:d} {2} -inp alpha_{0}/alpha_{0}.in -npool {3} > results/alpha_{0}.out
 rm -fr alpha_{0}/pwscf.*
-'''.format(alpha, ppn, run_cmd, pools)
+'''.format(alpha, np, run_cmd, self.run_params['pools'])
 
             script += run_script
 
