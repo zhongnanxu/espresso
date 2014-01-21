@@ -318,17 +318,17 @@ def run_pert(self, alphas=(-0.15, -0.07, 0, 0.07, 0.15), index=1, test=False,
 
     run_file_name = self.filename + '.run'
 
-    self.pick_processor()
     np = self.run_params['nodes'] * self.run_params['ppn']
     
     script = '''#!/bin/bash
 #PBS -l walltime={0}
-#PBS -l nodes={1:d}:ppn={2:d}:{4}
+#PBS -l nodes={1:d}:ppn={2:d}
+#PBS -l mem={4}
 #PBS -j oe
 #PBS -N {3}
 cd $PBS_O_WORKDIR
 '''.format(walltime, self.run_params['nodes'], self.run_params['ppn'],
-           self.run_params['jobname'], self.run_params['processor'])
+           self.run_params['jobname'], self.run_params['mem'])
 
     run_cmd = self.run_params['executable']
 
