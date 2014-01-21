@@ -53,7 +53,7 @@ def run(self, series=False):
 #PBS -N {6}
 
 cd $PBS_O_WORKDIR
-    {3} < {4} | tee {5} 
+{3} < {4} | tee {5} 
 '''.format(self.run_params['walltime'], self.run_params['nodes'],
        self.run_params['ppn'], runscript, in_file, out_file,
        self.run_params['jobname'], self.run_params['processor'])
