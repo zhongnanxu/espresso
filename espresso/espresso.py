@@ -165,6 +165,7 @@ class Espresso(Calculator):
         # decide whether we need to start fresh, restart, or read the data
 
         self.atoms = atoms
+        self.original_atoms = atoms
         self.filename = os.path.basename(self.espressodir)
         self.name = 'QuantumEspresso'        
         self.real_params = {}
@@ -522,8 +523,7 @@ class Espresso(Calculator):
         if self.status == 'running':
             raise EspressoRunning('Running', os.getcwd())
         if (self.status == 'done'
-            and self.converged == False
-            and self.run_params['restart'] == False):
+            and self.converged == False):
             raise EspressoNotConverged('Not Converged', os.getcwd())
         if self.calculation_required(force=force):
             self.write_input()
@@ -601,10 +601,14 @@ class Espresso(Calculator):
                     sflags[constr.index] = [True, True, True]
 
         # Write the ATOMIC_POSITIONS in crystal
-        positions = self.atoms.get_scaled_positions()
+        if self.run_params['restart'] == True:
+            positions = self.original_atoms.get_scaled_positions()
+        else:
+            positions = self.atoms.get_scaled_positions()
         in_file.write('ATOMIC_POSITIONS {crystal}\n')
         for iatom, pos in enumerate(zip(self.new_symbols, positions)):
-            in_file.write(' {0} {1:1.5f} {2:1.5f} {3:1.5f}'.format(pos[0], pos[1][0], pos[1][1], pos[1][2]))
+            in_file.write(' {0} {1:1.5f} {2:1.5f} {3:1.5f}'.format(pos[0], pos[1][0], 
+                                                                   pos[1][1], pos[1][2]))
             if self.atoms.constraints:
                 for flag in sflags[iatom]:
                     if flag:
