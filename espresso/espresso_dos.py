@@ -171,3 +171,86 @@ class EspressoDos(object):
         else:
             return np.array(spin_up), np.array(spin_down)
         
+    def get_number_of_states(self, atom, orbital, proj=None, spin=False, limits=None):
+        '''Return the number of states in a band. The inputs are the
+        same as get_site_dos() funciton. The limits defines the limits on the calculation
+        of the number of states'''
+        
+        energies = self.get_energies()
+        if limits == None:
+            ind = (energies <= energies.max()) & (energies >= energies.min())
+        else:
+            ind = (energies <= limits[1]) & (energies >= limits[0])
+        energies = energies[ind]
+
+        if spin == False:
+            states = self.get_site_dos(atom, orbital, proj, spin)[ind]
+            return np.trapz(states, energies)
+        else:
+            up_states, down_states = self.get_site_dos(atom, orbital, proj, spin)
+            up_states = up_states[ind]
+            down_states = down_states[ind]
+            return np.trapz(up_states, energies), np.trapz(down_states, energies)
+
+    def get_band_center(self, atom, orbital, proj=None, spin=False, limits=None):
+        '''Return the band center of a specific atomic orbital. The inputs are the
+        same as get_site_dos() funciton. The limits defines the limits on the calculation
+        of the band center'''
+        
+        energies = self.get_energies()
+        if limits == None:
+            ind = (energies <= energies.max()) & (energies >= energies.min())
+        else:
+            ind = (energies <= limits[1]) & (energies >= limits[0])
+        energies = energies[ind]
+
+        if spin == False:
+            states = self.get_site_dos(atom, orbital, proj, spin)[ind]
+            n_states = np.trapz(states, energies)
+            return np.trapz(energies * states, energies) / n_states
+        else:
+            up_states, down_states = self.get_site_dos(atom, orbital, proj, spin)
+            up_states = up_states[ind]
+            down_states = down_states[ind]
+            nup_states = np.trapz(up_states, energies)
+            ndown_states = np.trapz(down_states, energies)
+            nup_center = np.trapz(energies * up_states, energies) / nup_states
+            ndown_center = np.trapz(energies * down_states, energies) / ndown_states
+            return nup_center, ndown_center
+
+    def get_band_width(self, atom, orbital, proj=None, spin=False, limits=None):
+        '''Return the band width of a specific atomic orbital. The inputs are the
+        same as get_site_dos() funciton. The limits defines the limits on the calculation
+        of the band width'''
+        
+        energies = self.get_energies()
+        if limits == None:
+            ind = (energies <= energies.max()) & (energies >= energies.min())
+        else:
+            ind = (energies <= limits[1]) & (energies >= limits[0])
+        energies = energies[ind]
+
+        if spin == False:
+            states = self.get_site_dos(atom, orbital, proj, spin)[ind]
+            n_states = np.trapz(states, energies)
+            center = np.trapz(energies * states, energies) / n_states
+            centers = center * np.ones(len(energies))
+            return np.sqrt(np.trapz((energies - centers) ** 2 * states, energies) / n_states)
+                                      
+        else:
+            up_states, down_states = self.get_site_dos(atom, orbital, proj, spin)
+            up_states = up_states[ind]
+            down_states = down_states[ind]
+            nup_states = np.trapz(up_states, energies)
+            ndown_states = np.trapz(down_states, energies)
+            nup_center = np.trapz(energies * up_states, energies) / nup_states
+            ndown_center = np.trapz(energies * down_states, energies) / ndown_states
+            nup_centers = nup_center * np.ones(len(energies))
+            ndown_centers = ndown_center * np.ones(len(energies))
+            nup_width = np.sqrt(np.trapz((energies - nup_centers) ** 2 
+                                         * up_states, energies) / nup_states)
+            ndown_width = np.sqrt(np.trapz((energies - ndown_centers) ** 2 
+                                           * down_states, energies) / ndown_states)
+            return nup_width, ndown_width
+            
+
