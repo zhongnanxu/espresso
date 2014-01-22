@@ -198,7 +198,8 @@ class Espresso(Calculator):
                            'processor':'opteron4',
                            'mem': '2GB',
                            'jobname': None,
-                           'restart': False}
+                           'restart': False,
+                           'dos':False}
 
         # Define a default folder for where the pseudopotentials are held
         if self.string_params['pseudo_dir'] == None:
@@ -631,6 +632,17 @@ class Espresso(Calculator):
         
         return
 
+    def write_dos_input(self):
+        """Writes the input file for the dos calculation."""
+
+        in_file = open(self.filename + '.dos.in', 'w')
+        
+        in_file.write('&PROJWFC\n')
+        in_file.write('/\n')
+        in_file.close()
+        
+        return
+
     def read_initial_atoms(self):
         """The purpose of this function is to read the initial atomic positions from
         the in file
@@ -873,6 +885,12 @@ class Espresso(Calculator):
                 ethr = float(line.split()[2].translate(None, ','))
                 return ethr
             return None
+
+        def read_fermi_level(line):
+            if line.lower().startswith('     the fermi energy'):
+                fermi = float(line.split()[-2])
+                return fermi
+            return None
             
         if outfile == None:
             out_file = open(self.filename + '.out', 'r')
@@ -929,6 +947,10 @@ class Espresso(Calculator):
             diago_thr_init = read_diago_thr_init(line)
             if not diago_thr_init == None:
                 self.diago_thr_init = diago_thr_init
+
+            fermi = read_fermi_level(line)
+            if not fermi == None:
+                self.fermi = fermi
             
         self.all_pos.pop()
         if len(self.all_cells) > 1:
@@ -969,6 +991,13 @@ class Espresso(Calculator):
         self.update()
         return self.forces
 
+    def get_fermi_level(self, atoms=None):
+        if atoms == None:
+            atoms = self.get_atoms()
+        self.update()
+        return self.fermi
+        
+
     def check_calc_complete(self, filename=None):
         '''Mainly used for a quick check for linear response calculations'''
         if filename == None:
@@ -983,6 +1012,8 @@ class Espresso(Calculator):
                 done = True
         return done
 
+# Import the rest of the functions
 from espresso_lrU import *
 from espresso_run import *
 from espresso_traj import *
+from espresso_dos import *

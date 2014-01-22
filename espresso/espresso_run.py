@@ -70,6 +70,20 @@ mpirun -np {9:d} {3} -inp {4} -npool {7} | tee {6}
        self.run_params['ppn'], runscript, in_file, self.run_params['jobname'],
        out_file, self.run_params['pools'], self.run_params['processor'], np)
 
+    # If we want to perform a density of states calculation, we need
+    # more runscripts
+    if self.run_params['dos'] == True:
+        self.write_dos_input()
+        in_dos_filename = self.filename + '.dos.in'
+        out_dos_filename = self.filename + '.dos.out'
+        if (self.run_params['ppn'] == 1 and self.run_params['nodes'] == 1):
+            rundos = 'projwfc.x < {0} | tee {1}\n'
+            script += rundos.format(in_dos_filename, out_dos_filename)
+        else:
+            rundos = 'mpirun -np {0:d} projwfc.x -inp {1} | tee {2}\n'
+            script += rundos.format(self.run_params['ppn'], in_dos_filename,
+                                    out_dos_filename)
+
     if self.string_params['disk_io'] == 'none':
         script += 'eclean\n# end'
     else:
