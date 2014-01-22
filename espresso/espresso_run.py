@@ -216,9 +216,4 @@ mpirun -np {2} {3} -inp {4}.in -npool {5} | tee {4}.out
 
     os.chdir(cwd)
 
-<<<<<<< HEAD
     return 
-
-=======
-    return    
->>>>>>> nifhleim
