@@ -152,23 +152,36 @@ def run_series(name, calcs, walltime='50:00:00', ppn=1, nodes=1, mem='2GB',
 
     os.chdir(os.path.expanduser(name))
 
+
+    # For working on the nifhleim cluster, pick the processor
+    if ppn <= 4:
+        processor = 'opteron4'
+    elif ppn <= 8:
+        processor = 'xeon8'
+    elif ppn <= 16:
+        processor = 'xeon16'
+    elif ppn == 32:
+        processor = 'xeon16'
+        nodes = 2
+        ppn = 16
+    else:
+        assert 'Pick a correct number of nodes!'
+
     if (ppn == 1 and nodes == 1):
         script = '''#!/bin/bash
 #PBS -l walltime={0}
-#PBS -l nodes={1:d}:ppn={2:d}
-#PBS -l mem={3}
+#PBS -l nodes={1:d}:ppn={2:d}:{4}
 #PBS -j oe
-#PBS -N {4}
-\n'''.format(walltime, nodes, ppn, mem, name)
+#PBS -N {3}
+\n'''.format(walltime, nodes, ppn, name, processor)
         
     else:
         script = '''#!/bin/bash
 #PBS -l walltime={0}
-#PBS -l nodes={1:d}:ppn={2:d}
-#PBS -l mem={3}
+#PBS -l nodes={1:d}:ppn={2:d}:{4}
 #PBS -j oe
-#PBS -N {4}
-\n'''.format(walltime, nodes, ppn, mem, name)
+#PBS -N {3}
+\n'''.format(walltime, nodes, ppn, name, processor)
 
     # Now add on the parts of the script needed for the restarts.
     if save == True:
