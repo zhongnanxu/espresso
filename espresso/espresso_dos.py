@@ -9,58 +9,62 @@ class EspressoDos(object):
     """
 
     def __init__(self, efermi=0.0):
-        """Initialize"""
+        """Initialize the class. The key variable for storing data is
+        the self.dos_dict. This initialize function and creates empty
+        dictionaries for when we actually want to read the data.
+
+        This also creates a corresponding self.anal_dict dictionary
+        for storing properties of the d-band."""
+
         self.efermi = efermi
         self.calc = Espresso()
+
+        if self.calc.string_params['prefix'] == None:
+            self.prefix = 'pwscf'
+        else:
+            self.prefix = self.calc.string_params['prefix']
 
         natoms = self.calc.atoms.get_number_of_atoms()
 
         # Because the output depends on the pseudopotential,
         # we first need to store which projections we need.
         syms = set(self.calc.atoms.get_chemical_symbols())
-        proj_dict = {}
+        self.proj_dict = {}
         for sym in syms:
             PP_file = open(self.calc.string_params['pseudo_dir'] 
                            + '/{0}'.format(ESPRESSO_PPs[sym][0]), 'r')
             lines = PP_file.readlines()
-            proj_dict[sym] = []
+            self.proj_dict[sym] = []
             i = 0
             for line in lines:
                 if line.lower().startswith(' wavefunctions'):
                     while not lines[i+1].startswith('</PP_HEADER>'):
-                        proj_dict[sym].append(lines[i+1].split()[0].lower())
+                        self.proj_dict[sym].append(lines[i+1].split()[0].lower())
                         i += 1
                     break
                 i += 1
 
-        # Now that we have a list of projections we need, we can begin
-        # the density of state files
+        # Make an empty dictionary file for storing the raw densities
         self.dos_dict = {}
-        i = 1
-        chemical_syms = self.calc.atoms.get_chemical_symbols()
-        special_syms = self.calc.new_symbols
-        for atom, atom_sym in zip(chemical_syms, special_syms):
-            j = 1
-            for orbital in proj_dict[atom]:
-                dos_name = '{0}.pdos_atm#{1}({2})_wfc#{3}({4})'
-                if self.calc.string_params['prefix'] == None:
-                    prefix = 'pwscf'
-                else:
-                    prefix = self.calc.string_params['prefix']
-                if i - 1 not in self.dos_dict:
-                    self.dos_dict[i-1] = {}
-                dos  = self.read_dosfile(dos_name.format(prefix, i,
-                                                       atom_sym, j,
-                                                       proj_dict[atom][j-1][-1]), 
-                                         proj_dict[atom][j-1][-1])
-                self.dos_dict[i - 1][proj_dict[atom][j-1]] = dos
-                j += 1
-            i += 1
-                
+        self.chemical_syms = self.calc.atoms.get_chemical_symbols()
+        
+        for i, sym in enumerate(self.chemical_syms):
+            self.dos_dict[i] = {}
+            for orbital in self.proj_dict[sym]:
+                self.dos_dict[i][orbital] = None
+
+        # Make an empty dictionary file for storing properties of the densities
+        self.anal_dict = {}
+        
+        for i, sym in enumerate(self.chemical_syms):
+            self.dos_dict[i] = {}
+            for orbital in self.proj_dict[sym]:
+                self.dos_dict[i][orbital] = None
+
         # Finally, read the total density of states file. This will also get the energies
         self.energies, self.total_dos_up, self.total_dos_down = [], [], []
         self.total_dos = []
-        tot_dos_name = '{0}.pdos_tot'.format(prefix)
+        tot_dos_name = '{0}.pdos_tot'.format(self.prefix)
         f = open(tot_dos_name, 'r')
         f.readline()
         for line in f:
@@ -72,6 +76,23 @@ class EspressoDos(object):
         f.close()        
         
         return
+
+    def update(self, atom, orbital):
+        '''Check to see if we need to read the specific data'''
+
+        if self.dos_dict[atom][orbital] is not None:
+            return
+        dos_name = '{0}.pdos_atm#{1}({2})_wfc#{3}({4})'
+        self.special_syms = self.calc.new_symbols
+        fname = dos_name.format(self.prefix, atom + 1, self.special_syms[atom],
+                                self.proj_dict[self.chemical_syms[atom]].index(orbital) + 1,
+                                orbital[-1])
+
+        dos  = self.read_dosfile(fname, orbital[-1])
+        self.dos_dict[atom][orbital] = dos
+        
+        return
+        
 
     def read_dosfile(self, fname, orbital):
         '''This read a single file and returns a dictionary file that contains
@@ -158,6 +179,8 @@ class EspressoDos(object):
         p orbital: px, py, pz
         d orbital: dz2, dzx, dzy, dx2-y2, dxy
         '''
+
+        self.update(atom, orbital)
         
         if proj == None:
             spin_up = self.dos_dict[atom][orbital]['tot+']
