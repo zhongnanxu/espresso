@@ -58,6 +58,8 @@ def run_scf(self, patoms, center=True):
     # Now create folders for each perturbation and run the scf calculations
     cwd = os.getcwd()
     original_filename = self.filename
+    pert_atom_indexes = []
+    ready = True
     for i, key in enumerate(keys):
         i += 1
         tags = []
@@ -67,6 +69,8 @@ def run_scf(self, patoms, center=True):
             else:
                 tags.append(0)
         self.initialize_atoms(tags=tags)
+        unique_tags = zip(*self.unique_set)[-1]
+        pert_atom_indexes.append(unique_tags.index(i) + 1)
         self.int_params['ntyp'] = len(self.unique_set)
         if center == True:
             pos = self.atoms.get_positions()
@@ -76,13 +80,19 @@ def run_scf(self, patoms, center=True):
         if not os.path.isdir(self.filename):
             os.makedirs(self.filename)
         os.chdir(self.filename)
-        if self.check_calc_complete() == False:
+        if self.check_calc_complete() == False and not self.job_in_queue():
             self.write_input()
             self.run_params['jobname'] = self.espressodir + '-{0:d}-scf'.format(i)
             self.run(series=True)
+            ready = False
         os.chdir(cwd)
 
-    return
+    self.filename = original_filename
+
+    if ready == True:
+        return pert_atom_indexes
+    else:
+        return
 
 Espresso.run_scf = run_scf
     
@@ -93,18 +103,22 @@ def run_perts(self, indexes, alphas=(-0.15, -0.07, 0, 0.07, 0.15),
 
     original_filename = self.filename
     cwd = os.getcwd()
+    ready = True
     for i, ind in enumerate(indexes):
         i += 1 
         self.filename = original_filename + '-{0:d}-pert'.format(i)
         os.chdir(self.filename)
         # First check if the self-consistent calculation is complete
-        if self.check_calc_complete() == False:
-            pass
+        if (self.check_calc_complete() == False or self.job_in_queue()):
+            os.chdir(cwd)
+            continue
         self.run_params['jobname']  = self.espressodir + '-{0:d}'.format(i)
-        self.run_pert(alphas=alphas, index=ind, test=test, walltime=walltime,
-                      mem=mem)
+        if not self.run_pert(alphas=alphas, index=ind, test=test,
+                             walltime=walltime, mem=mem):
+            ready = False
         os.chdir(cwd)
-    return
+    self.filename = original_filename
+    return ready
 
 Espresso.run_perts = run_perts
     
@@ -218,6 +232,15 @@ def calc_Us(self, patoms, alphas=(-0.15, -0.07, 0, 0.07, 0.15), test=False, sc=1
     rxinput.write('  n2 = {0}\n'.format(sc))
     rxinput.write('  n3 = {0}\n'.format(sc))
     rxinput.write('&end')
+    rxinput.close()
+
+    rxinput = open('Ucalc/rx.in', 'r')
+
+    # Now lets perform the calculation
+    os.chdir('Ucalc')
+    if call(['r.x'], stdin=rxinput):
+        print 'There was an error in r.x'
+    os.chdir(cwd)
 
     return
 
@@ -309,6 +332,10 @@ def run_pert(self, alphas=(-0.15, -0.07, 0, 0.07, 0.15), index=1, test=False,
 
     run_alphas = self.write_pert(alphas=alphas, index=index, parallel=False)
     if run_alphas == None:
+        return True
+
+    # Check to see if the calculation is even running
+    if self.job_in_queue():
         return
 
     if self.run_params['jobname'] == None:
@@ -318,17 +345,30 @@ def run_pert(self, alphas=(-0.15, -0.07, 0, 0.07, 0.15), index=1, test=False,
 
     run_file_name = self.filename + '.run'
 
-    self.pick_processor()
     np = self.run_params['nodes'] * self.run_params['ppn']
     
+    # Start the run script
     script = '''#!/bin/bash
 #PBS -l walltime={0}
-#PBS -l nodes={1:d}:ppn={2:d}:{4}
 #PBS -j oe
-#PBS -N {3}
-cd $PBS_O_WORKDIR
-'''.format(walltime, self.run_params['nodes'], self.run_params['ppn'],
-           self.run_params['jobname'], self.run_params['processor'])
+#PBS -N {1}
+'''.format(self.run_params['walltime'], self.run_params['jobname'])
+
+    # Now add pieces to the script depending on whether we need to
+    # pick the processor or the memory
+    if self.run_params['processor'] == None:
+        script += '#PBS -l nodes={0:d}:ppn={1:d}\n'.format(self.run_params['nodes'],
+                                                           self.run_params['ppn'])
+    else:
+        script += '#PBS -l nodes={0:d}:ppn={1:d}:{2}\n'.format(self.run_params['nodes'],
+                                                               self.run_params['ppn'],
+                                                               self.run_params['processor'])
+        
+    if self.run_params['mem'] != None:
+        script += '#PBS -l mem={0}\n'.format(self.run_params['mem'])
+
+    # Now add the parts of the script for running calculations
+    script += '\ncd $PBS_O_WORKDIR\n'
 
     run_cmd = self.run_params['executable']
 
@@ -367,7 +407,95 @@ rm -fr alpha_{0}/pwscf.*
     return
 
 Espresso.run_pert = run_pert
+        
+def read_Us(self, f='Umat.out'):
+    if not isdir('Ucalc'):
+        return
+
+    os.chdir('Ucalc')
+
+    Ufile = open(f, 'r')
     
+    Us = []
+    lines = Ufile.readlines()
+    for i, line in enumerate(lines):
+        if line.startswith('  type:'):
+            while lines[i].startswith('  type:'):
+                Us.append(float(lines[i].split()[-1]))
+                i += 1
+            break
+        
+    return Us
+
+Espresso.read_Us = read_Us
+
+def get_linear_response_Us(self, patoms, center=True, alphas=(-0.15, -0.07, 0, 0.07, 0.15)):
+    '''This is a convenience function that does all of the calculations needed to 
+    calculate the linear response U value'''
+
+    # First try running the self-consistent calculation. If it is finished
+    # it will return the indexes of the atoms (Quantum-Espresso format) that
+    # need to be perturbed
+    pert_atom_indexes = self.run_scf(patoms, center=center)
+    if pert_atom_indexes is None:
+        print self.espressodir, 'SCF Running'
+        return
+
+    # Now try to run the perturbation calculations. If the calculation is done, the
+    # function will return True and will proceed to calculate the linear response U
+    walltime = self.run_params['walltime']
+    mem = self.run_params['mem']
+    if not self.run_perts(pert_atom_indexes, alphas, walltime, mem):
+        print self.espressodir, 'PERT Running'
+        return
+    
+    self.calc_Us(patoms, alphas=alphas)
+    Us = self.read_Us()
+    return Us
+    
+# The function below was a previously developed function for performing
+# the calculation of the linear response U on a single perturbed atom
+# Do not use this
+
+Espresso.get_linear_response_Us = get_linear_response_Us
+
+def run_pert_parallel(self, alphas=(-0.15, -0.07, 0, 0.07, 0.15), index=1, test=False):
+    '''This is a trial script to see if calculations can be done in parallel.
+    '''
+    run_alphas = self.write_pert(alphas=alphas, index=index, parallel=True)
+    run_cmd = self.run_params['executable']
+    for alpha in run_alphas:
+        script = '''#!/bin/bash
+cd $PBS_O_WORKDIR
+{0} < alpha_{1}.in > results/alpha_{1}.out
+# end
+'''.format(run_cmd, alpha)
+        if self.run_params['jobname'] == None:
+            self.run_params['jobname'] = self.espressodir + '-pert'
+        else:
+            self.run_params['jobname'] += '-pert'
+
+        resources = '-l walltime={0},nodes={1:d}:ppn={2:d}'
+        if test == True:
+            print script
+            continue
+        p = Popen(['qsub',
+                   self.run_params['options'],
+                   '-N', self.run_params['jobname'] + '_{0}'.format(alpha),
+                   resources.format(self.run_params['walltime'],
+                                    self.run_params['nodes'],
+                                    self.run_params['ppn'])],
+                  stdin=PIPE, stdout=PIPE, stderr=PIPE)
+        out, err = p.communicate(script)
+        f = open('jobid', 'w')
+        f.write(out)
+        f.close()
+
+    return
+
+Espresso.run_pert_parallel = run_pert_parallel
+
+
 def calc_U(self, dict_index, alphas=(-0.15, -0.07, 0, 0.07, 0.15), test=False, sc=1):
     '''The purpose of this program is to take the data out of the
     already run calculations and feed it to the r.x program, which
@@ -486,45 +614,3 @@ def calc_U(self, dict_index, alphas=(-0.15, -0.07, 0, 0.07, 0.15), test=False, s
     return U 
 
 Espresso.calc_U = calc_U
-    
-def read_Umat(self, f='Umat.out'):
-
-    return
-
-Espresso.read_Umat = read_Umat
-    
-def run_pert_parallel(self, alphas=(-0.15, -0.07, 0, 0.07, 0.15), index=1, test=False):
-    '''This is a trial script to see if calculations can be done in parallel.
-    '''
-    run_alphas = self.write_pert(alphas=alphas, index=index, parallel=True)
-    run_cmd = self.run_params['executable']
-    for alpha in run_alphas:
-        script = '''#!/bin/bash
-cd $PBS_O_WORKDIR
-{0} < alpha_{1}.in > results/alpha_{1}.out
-# end
-'''.format(run_cmd, alpha)
-        if self.run_params['jobname'] == None:
-            self.run_params['jobname'] = self.espressodir + '-pert'
-        else:
-            self.run_params['jobname'] += '-pert'
-
-        resources = '-l walltime={0},nodes={1:d}:ppn={2:d}'
-        if test == True:
-            print script
-            continue
-        p = Popen(['qsub',
-                   self.run_params['options'],
-                   '-N', self.run_params['jobname'] + '_{0}'.format(alpha),
-                   resources.format(self.run_params['walltime'],
-                                    self.run_params['nodes'],
-                                    self.run_params['ppn'])],
-                  stdin=PIPE, stdout=PIPE, stderr=PIPE)
-        out, err = p.communicate(script)
-        f = open('jobid', 'w')
-        f.write(out)
-        f.close()
-
-    return
-
-Espresso.run_pert_parallel = run_pert_parallel

@@ -3,26 +3,6 @@
 """
 
 from espresso import *
-
-def pick_processor(self):
-    '''The point of this function to take in the amount of processors
-    requested and figure out how many nodes and which processor we need'''
-    ppn = self.run_params['ppn']
-    if ppn <= 4:
-        self.run_params['processor'] = 'opteron4'
-    elif ppn <= 8:
-        self.run_params['processor'] = 'xeon8'
-    elif ppn <= 16:
-        self.run_params['processor'] = 'xeon16'
-    elif ppn == 32:
-        self.run_params['processor'] = 'xeon16'
-        self.run_params['nodes'] = 2
-        self.run_params['ppn'] = 16
-    else:
-        assert 'Pick a correct number of nodes!'
-    return
-
-Espresso.pick_processor = pick_processor
     
 def run(self, series=False):
     """Submits a calculation to the queue
@@ -35,40 +15,45 @@ def run(self, series=False):
     files if disk='none' is set.
     """
 
-    runscript = self.run_params['executable']
     in_file = self.filename + '.in'
     out_file = self.filename + '.out'
     run_file_name = self.filename + '.run'
     if self.run_params['jobname'] == None:
         self.run_params['jobname'] = self.espressodir
 
-    self.pick_processor()
     np = self.run_params['nodes'] * self.run_params['ppn']
 
-    if (self.run_params['ppn'] == 1 and self.run_params['nodes'] == 1):
-        script = '''#!/bin/bash
-#PBS -l walltime={0} 
-#PBS -l nodes={1:d}:ppn={2:d}:{7}
-#PBS -j oe
-#PBS -N {6}
-
-cd $PBS_O_WORKDIR
-{3} < {4} | tee {5} 
-'''.format(self.run_params['walltime'], self.run_params['nodes'],
-       self.run_params['ppn'], runscript, in_file, out_file,
-       self.run_params['jobname'], self.run_params['processor'])
-    else:
-        script = '''#!/bin/bash
+    # Start the run script
+    script = '''#!/bin/bash
 #PBS -l walltime={0}
-#PBS -l nodes={1:d}:ppn={2:d}:{8}
 #PBS -j oe
-#PBS -N {5}
+#PBS -N {1}
+'''.format(self.run_params['walltime'], self.run_params['jobname'])
 
-cd $PBS_O_WORKDIR
-mpirun -np {9:d} {3} -inp {4} -npool {7} | tee {6}
-'''.format(self.run_params['walltime'], self.run_params['nodes'],
-       self.run_params['ppn'], runscript, in_file, self.run_params['jobname'],
-       out_file, self.run_params['pools'], self.run_params['processor'], np)
+    # Now add pieces to the script depending on whether we need to
+    # pick the processor or the memory
+    if self.run_params['processor'] == None:
+        script += '#PBS -l nodes={0:d}:ppn={1:d}\n'.format(self.run_params['nodes'],
+                                                           self.run_params['ppn'])
+    else:
+        script += '#PBS -l nodes={0:d}:ppn={1:d}:{2}\n'.format(self.run_params['nodes'],
+                                                               self.run_params['ppn'],
+                                                               self.run_params['processor'])
+        
+    if self.run_params['mem'] != None:
+        script += '#PBS -l mem={0}\n'.format(self.run_params['mem'])
+
+
+    # Now add the parts of the script for running calculations
+    script += '\ncd $PBS_O_WORKDIR\n'
+
+    if np == 1:
+        runscript = '{0} < {1} | tee {2}\n'
+        script += runscript.format(self.run_params['executable'], in_file, out_file)
+    else:
+        runscript = 'mpirun -np {0:d} {1} -inp {2} -npool {3} | tee {4}\n'
+        script += runscript.format(np, self.run_params['executable'],
+                                   in_file, self.run_params['pools'], out_file)                                   
 
     # If we want to perform a density of states calculation, we need
     # more runscripts
@@ -81,8 +66,7 @@ mpirun -np {9:d} {3} -inp {4} -npool {7} | tee {6}
             script += rundos.format(in_dos_filename, out_dos_filename)
         else:
             rundos = 'mpirun -np {0:d} projwfc.x -inp {1} | tee {2}\n'
-            script += rundos.format(self.run_params['ppn'], in_dos_filename,
-                                    out_dos_filename)
+            script += rundos.format(np, in_dos_filename, out_dos_filename)
 
     if self.string_params['disk_io'] == 'none':
         script += 'eclean\n# end'
@@ -110,8 +94,8 @@ mpirun -np {9:d} {3} -inp {4} -npool {7} | tee {6}
 
 Espresso.run = run
 
-def run_series(name, calcs, walltime='50:00:00', ppn=1, nodes=1, mem='2GB',
-               pools=1, save=True, test=False):
+def run_series(name, calcs, walltime='50:00:00', ppn=1, nodes=1, processor=None, mem=None,
+               pools=1, save=True, test=False, update_pos=False):
     '''The point of this function is to create a script that runs a bunch of
     calculations in series. After a calculation is done, it'll move the necessary
     restart output from the first calculation to the next. It takes a list of espresso
@@ -121,6 +105,24 @@ def run_series(name, calcs, walltime='50:00:00', ppn=1, nodes=1, mem='2GB',
 
     cwd = os.getcwd()
     filename = os.path.basename(name)
+    os.chdir(os.path.expanduser(name))
+
+    # First we want to check to see if a calculation is already running
+    if os.path.exists('jobid'):
+        # get the jobid
+        jobid = open('jobid').readline().strip()
+
+        # see if jobid is in queue
+        jobids_in_queue = commands.getoutput('qselect').split('\n')
+        if jobid in jobids_in_queue:
+            # get details on specific jobid
+            status, output = commands.getstatusoutput('qstat %s' % jobid)
+            if status == 0:
+                lines = output.split('\n')
+                fields = lines[2].split()
+                job_status = fields[4]
+                if job_status != 'C':
+                    return
     
     dirs, names, executables, convergences = [], [], [], []
     
@@ -150,44 +152,35 @@ def run_series(name, calcs, walltime='50:00:00', ppn=1, nodes=1, mem='2GB',
     # Begin writing the script we need to submit to run. If we are restarting from finished
     # initial calculations we need to copy the pwscf file from the previous calculation
 
-    os.chdir(os.path.expanduser(name))
-
-
-    # For working on the nifhleim cluster, pick the processor
-    if ppn <= 4:
-        processor = 'opteron4'
-    elif ppn <= 8:
-        processor = 'xeon8'
-    elif ppn <= 16:
-        processor = 'xeon16'
-    elif ppn == 32:
-        processor = 'xeon16'
-        nodes = 2
-        ppn = 16
-    else:
-        assert 'Pick a correct number of nodes!'
-
-    if (ppn == 1 and nodes == 1):
-        script = '''#!/bin/bash
+    # Start the run script
+    script = '''#!/bin/bash
 #PBS -l walltime={0}
-#PBS -l nodes={1:d}:ppn={2:d}:{4}
 #PBS -j oe
-#PBS -N {3}
-\n'''.format(walltime, nodes, ppn, name, processor)
+#PBS -N {1}
+'''.format(walltime, name)
+
+    # Now add pieces to the script depending on whether we need to
+    # pick the processor or the memory
+    if processor == None:
+        script += '#PBS -l nodes={0:d}:ppn={1:d}\n'.format(nodes, ppn)
+    else:
+        script += '#PBS -l nodes={0:d}:ppn={1:d}:{2}\n'.format(nodes, ppn, processor)
         
-    else:
-        script = '''#!/bin/bash
-#PBS -l walltime={0}
-#PBS -l nodes={1:d}:ppn={2:d}:{4}
-#PBS -j oe
-#PBS -N {3}
-\n'''.format(walltime, nodes, ppn, name, processor)
+    if mem != None:
+        script += '#PBS -l mem={0}\n'.format(mem)
+
+    script += '\n' # I just add this so there's a space after the #PBS commands
 
     # Now add on the parts of the script needed for the restarts.
     if save == True:
         move = 'cp -r'
     else:
         move = 'mv'
+
+    if update_pos == True:
+        update_atoms = 'update_atoms_espresso {0}'
+    else:
+        update_atoms = ''
 
     np = nodes * ppn
         
@@ -206,30 +199,36 @@ mpirun -np {1} {2} -inp {3}.in -npool {4} | tee {3}.out
         if (ppn == 1 and nodes == 1):
             script += '''cd {0}
 {1} pwscf.* {2}
+{5}
 cd {2}
 {3} < {4}.in | tee {4}.out
-\n'''.format(done_dirs[-1], move, dirs[0], executables[0], names[0])
+\n'''.format(done_dirs[-1], move, dirs[0], executables[0], 
+             names[0], update_atoms.format(dirs[0]))
         else:
             script += '''cd {0}
 {1} pwscf.* {2}
-cd {1}
+{7}
+cd {2}
 mpirun -np {3} {4} -inp {5}.in -npool {6} | tee {5}.out
-\n'''.format(done_dirs[-1], move, dirs[0], np, executables[0], names[0], pools)
+\n'''.format(done_dirs[-1], move, dirs[0], np, executables[0], 
+             names[0], pools, update_atoms.format(dirs[0]))
             
     # Now do the rest of the calculations
     if (ppn == 1 and nodes == 1):                    
         for d, n, r in zip(dirs[1:], names[1:], executables[1:]):
             script +='''{0} pwscf.* {1}
+{4}
 cd {1}
 {2} < {3}.in | tee {3}.out
-\n'''.format(move, d, r, n)
+\n'''.format(move, d, r, n, update_atoms.format(d))
 
     else:
         for d, n, r in zip(dirs[1:], names[1:], executables[1:]):
             script +='''{0} pwscf.* {1}
+{6}
 cd {1}
 mpirun -np {2} {3} -inp {4}.in -npool {5} | tee {4}.out
-\n'''.format(move, d, np, r, n, pools)
+\n'''.format(move, d, np, r, n, pools, update_atoms.format(d))
 
         
     if test == False:
