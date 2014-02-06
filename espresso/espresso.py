@@ -7,11 +7,10 @@ import commands
 import os
 import sys
 import re
-from time import sleep
 from string import digits, ascii_letters
 from os.path import join, isfile, islink, isdir
 from collections import Iterable
-from subprocess import Popen, PIPE
+from subprocess import Popen, PIPE, call
 
 import numpy as np
 
@@ -195,8 +194,8 @@ class Espresso(Calculator):
                            'nodes': 1,
                            'ppn': 1,
                            'pools': 1, # Number k-points must be divisible by pools
-                           'processor':'opteron4',
-                           'mem': '2GB',
+                           'processor':None,
+                           'mem': None,
                            'jobname': None,
                            'restart': False,
                            'dos':False}
@@ -402,8 +401,7 @@ class Espresso(Calculator):
             return result
 
         # Make a unique set and make new variables
-        self.unique_set = orderedset(zip(symbols, magmoms, Hubbard_Us,
-                                         Hubbard_alpha, tags))
+        self.unique_set = orderedset(zip(symbols, magmoms, Hubbard_Us, Hubbard_alpha, tags))
         unique_syms, unique_mags, unique_Us, unique_alphas, unique_tags = zip(*self.unique_set)
         
         # Write a new list of symbols that will be formated [atomic symbol][index]
@@ -589,7 +587,7 @@ class Espresso(Calculator):
         in_file.write('ATOMIC_SPECIES\n')
         for species in self.atomic_species:
             in_file.write(' {0} {1} {2}\n'.format(species[0] + species[1],
-                                                  Atom(species[0]).get_mass(),
+                                                  Atom(species[0]).mass,
                                                   species[2]))
 
         # Before writing the atomic positions, get the constraints
@@ -832,7 +830,7 @@ class Espresso(Calculator):
             if (self.string_params['calculation'] not in ('relax', 'vc-relax')):
                 if line.lower().startswith('     convergence has been achieved'):
                     return True
-                elif line.lower().startswith('     convergence NOT achieved'):
+                elif line.lower().startswith('     convergence not achieved'):
                     return False
             else:
                 if line.lower().startswith('     bfgs converged in'):
@@ -995,8 +993,7 @@ class Espresso(Calculator):
         if atoms == None:
             atoms = self.get_atoms()
         self.update()
-        return self.fermi
-        
+        return self.fermi        
 
     def check_calc_complete(self, filename=None):
         '''Mainly used for a quick check for linear response calculations'''
@@ -1008,7 +1005,7 @@ class Espresso(Calculator):
         lines = f.readlines()
         done = False
         for line in lines:
-            if line.startswith('     convergence has been achieved'):
+            if line.lower().startswith('     convergence has been achieved'):
                 done = True
         return done
 
