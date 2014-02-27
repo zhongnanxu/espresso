@@ -165,7 +165,8 @@ class Espresso(Calculator):
 
         self.atoms = atoms
         self.original_atoms = atoms
-        self.filename = os.path.basename(self.espressodir)
+        self.old_filename = os.path.basename(self.espressodir) # For old version of espresso that used this filename
+        self.filename = 'pwscf'
         self.name = 'QuantumEspresso'        
         self.real_params = {}
         self.string_params = {}
@@ -206,15 +207,18 @@ class Espresso(Calculator):
             self.string_params['pseudo_dir'] = PPpath        
             
         # If it is a clean folder
-        if (not os.path.exists(self.filename + '.in')):
+        if (not os.path.exists(self.old_filename + '.in')
+            and not os.path.exists(self.filename + '.in')):
             self.espresso_running = False
             self.converged = False
             self.status = 'empty'
 
         # If there's only an input file and never got submitted
-        elif (os.path.exists(self.filename + '.in')
+        elif ((os.path.exists(self.filename + '.in')
+              or os.path.exists(self.old_filename + '.in'))
               and not os.path.exists('jobid')
-              and not os.path.exists(self.filename + '.out')):
+              and (not os.path.exists(self.filename + '.out')
+                   and not os.path.exists(self.old_filename + '.out'))):
             self.read_input()
             self.espresso_running = False
             self.converged = False
@@ -257,7 +261,8 @@ class Espresso(Calculator):
 
         # If job was done a while ago
         elif (not os.path.exists('jobid')
-              and os.path.exists(self.filename + '.out')):
+              and (os.path.exists(self.filename + '.out')
+                   or os.path.exists(self.old_filename + '.out'))):
             self.espresso_running = False
             self.read_input()
             self.read_output()
@@ -648,7 +653,11 @@ class Espresso(Calculator):
 
         # First read the data. Note this only works when the ATOMIC_SPECIES card is
         # BEFORE the ATOMIC_POSITIONS card
-        infile = open(self.filename + '.in', 'r')
+              
+        try:
+            infile = open(self.filename + '.in', 'r')
+        except:
+            infile = open(self.old_filename + '.in', 'r')
         lines = infile.readlines()
         for i, line in enumerate(lines):
             if line.split()[0].lower() == 'atomic_species':
@@ -711,7 +720,11 @@ class Espresso(Calculator):
         '''Method that imports settings from the input file'''
         # First read the atoms
         unique_syms = self.read_initial_atoms()
-        infile = open(self.filename + '.in', 'r')
+                   
+        try:
+            infile = open(self.filename + '.in', 'r')
+        except:
+            infile = open(self.old_filename + '.in', 'r')
         lines = infile.readlines()
         for i, line in enumerate(lines):
             line = line.strip()
@@ -788,7 +801,7 @@ class Espresso(Calculator):
     def read_output(self, outfile=None):
         """The purpose of this function is to read the output assign information
         from that output to the calculator object. We will read the entire output
-        file once, assigning variables when we find them."""
+        file once, assigning varibles when we find them."""
         
         # First, define the functions that will read an individual line and see
         # If there's anything useful there
@@ -891,7 +904,10 @@ class Espresso(Calculator):
             return None
             
         if outfile == None:
-            out_file = open(self.filename + '.out', 'r')
+            if isfile(self.filename + '.out'):
+                out_file = open(self.filename + '.out', 'r')
+            else:
+                out_file = open(self.old_filename + '.out', 'r')
         else:
             out_file = open(outfile, 'r')
         lines = out_file.readlines()
@@ -999,8 +1015,14 @@ class Espresso(Calculator):
         '''Mainly used for a quick check for linear response calculations'''
         if filename == None:
             filename = self.filename + '.out'
-        if not isfile(filename):
+            old_filename = self.old_filename + '.out'
+        if isfile(filename):
+            pass
+        elif isfile(old_filename):
+            filename = old_filename
+        else:
             return False
+
         f = open(filename, 'r')
         lines = f.readlines()
         done = False
