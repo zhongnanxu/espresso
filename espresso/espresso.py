@@ -462,7 +462,7 @@ class Espresso(Calculator):
             #       and fnmatch.fnmatch(ef, self.filename + '*')):
             #     shutil.copy(ef, newdirpath)
         
-    def calculation_required(self, force=False):
+    def calculation_required(self, atoms=None, property=None, force=False):
         if (self.converged == False):
             return True
 
