@@ -103,6 +103,31 @@ def run_series(name, calcs, walltime='50:00:00', ppn=1, nodes=1, processor=None,
     after each calculation.
     '''
 
+    dirs, names, executables, convergences = [], [], [], []
+
+    # First get a list of all of the folders being run
+    for calc in calcs:
+        dirs.append(os.path.abspath(os.path.expanduser(calc.espressodir)))
+        names.append(calc.filename)
+        executables.append(calc.run_params['executable'])
+        convergences.append(calc.converged)
+
+    done_dirs, done_names, done_executables = [], [], []
+
+    # Adjust the lists to make way for converged calculations
+    if save == True:
+        for i in range(len(dirs)):
+            if convergences[i] == True:
+                done_dirs.append(dirs.pop(0))
+                done_names.append(names.pop(0))
+                done_executables.append(executables.pop(0))
+            else:
+                break
+
+    # If all calculations are done, then just exit the script
+    if len(dirs) == 0:
+        return
+
     cwd = os.getcwd()
     filename = os.path.basename(name)
     os.chdir(os.path.expanduser(name))
@@ -123,31 +148,6 @@ def run_series(name, calcs, walltime='50:00:00', ppn=1, nodes=1, processor=None,
                 job_status = fields[4]
                 if job_status != 'C':
                     return
-    
-    dirs, names, executables, convergences = [], [], [], []
-    
-    # First get a list of all of the folders being run
-    for calc in calcs:
-        dirs.append(os.path.abspath(os.path.expanduser(calc.espressodir)))
-        names.append(calc.filename)
-        executables.append(calc.run_params['executable'])
-        convergences.append(calc.converged)
-
-    done_dirs, done_names, done_executables = [], [], []
-    
-    # Adjust the lists to make way for converged calculations
-    if save == True:
-        for i in range(len(dirs)):
-            if convergences[i] == True:
-                done_dirs.append(dirs.pop(0))
-                done_names.append(names.pop(0))
-                done_executables.append(executables.pop(0))
-            else:
-                break
-
-    # If all calculations are done, then just exit the script
-    if len(dirs) == 0:
-        return
                 
     # Begin writing the script we need to submit to run. If we are restarting from finished
     # initial calculations we need to copy the pwscf file from the previous calculation
