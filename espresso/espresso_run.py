@@ -198,7 +198,7 @@ mpirun -np {1} {2} -inp {3}.in -npool {4} | tee {3}.out
     else:
         if (ppn == 1 and nodes == 1):
             script += '''cd {0}
-{1} pwscf.* {2}
+{1} pwscf.atwfc* pwscf.satwfc1* pwscf.wfc* pwscf.occup pwscf.igk* pwscf.save {2}
 {5}
 cd {2}
 {3} < {4}.in | tee {4}.out
@@ -206,7 +206,7 @@ cd {2}
              names[0], update_atoms.format(dirs[0]))
         else:
             script += '''cd {0}
-{1} pwscf.* {2}
+{1} pwscf.atwfc* pwscf.satwfc1* pwscf.wfc* pwscf.occup pwscf.igk* pwscf.save {2}
 {7}
 cd {2}
 mpirun -np {3} {4} -inp {5}.in -npool {6} | tee {5}.out
@@ -216,7 +216,7 @@ mpirun -np {3} {4} -inp {5}.in -npool {6} | tee {5}.out
     # Now do the rest of the calculations
     if (ppn == 1 and nodes == 1):                    
         for d, n, r in zip(dirs[1:], names[1:], executables[1:]):
-            script +='''{0} pwscf.* {1}
+            script +='''{0} pwscf.atwfc* pwscf.satwfc1* pwscf.wfc* pwscf.occup pwscf.igk* pwscf.save {1}
 {4}
 cd {1}
 {2} < {3}.in | tee {3}.out
@@ -224,7 +224,7 @@ cd {1}
 
     else:
         for d, n, r in zip(dirs[1:], names[1:], executables[1:]):
-            script +='''{0} pwscf.* {1}
+            script +='''{0} pwscf.atwfc* pwscf.satwfc1* pwscf.wfc* pwscf.occup pwscf.igk* pwscf.save {1}
 {6}
 cd {1}
 mpirun -np {2} {3} -inp {4}.in -npool {5} | tee {4}.out
