@@ -103,6 +103,31 @@ def run_series(name, calcs, walltime='50:00:00', ppn=1, nodes=1, processor=None,
     after each calculation.
     '''
 
+    dirs, names, executables, convergences = [], [], [], []
+
+    # First get a list of all of the folders being run
+    for calc in calcs:
+        dirs.append(os.path.abspath(os.path.expanduser(calc.espressodir)))
+        names.append(calc.filename)
+        executables.append(calc.run_params['executable'])
+        convergences.append(calc.converged)
+
+    done_dirs, done_names, done_executables = [], [], []
+
+    # Adjust the lists to make way for converged calculations
+    if save == True:
+        for i in range(len(dirs)):
+            if convergences[i] == True:
+                done_dirs.append(dirs.pop(0))
+                done_names.append(names.pop(0))
+                done_executables.append(executables.pop(0))
+            else:
+                break
+
+    # If all calculations are done, then just exit the script
+    if len(dirs) == 0:
+        return
+
     cwd = os.getcwd()
     filename = os.path.basename(name)
     os.chdir(os.path.expanduser(name))
@@ -123,31 +148,6 @@ def run_series(name, calcs, walltime='50:00:00', ppn=1, nodes=1, processor=None,
                 job_status = fields[4]
                 if job_status != 'C':
                     return
-    
-    dirs, names, executables, convergences = [], [], [], []
-    
-    # First get a list of all of the folders being run
-    for calc in calcs:
-        dirs.append(os.path.abspath(os.path.expanduser(calc.espressodir)))
-        names.append(calc.filename)
-        executables.append(calc.run_params['executable'])
-        convergences.append(calc.converged)
-
-    done_dirs, done_names, done_executables = [], [], []
-    
-    # Adjust the lists to make way for converged calculations
-    if save == True:
-        for i in range(len(dirs)):
-            if convergences[i] == True:
-                done_dirs.append(dirs.pop(0))
-                done_names.append(names.pop(0))
-                done_executables.append(executables.pop(0))
-            else:
-                break
-
-    # If all calculations are done, then just exit the script
-    if len(dirs) == 0:
-        return
                 
     # Begin writing the script we need to submit to run. If we are restarting from finished
     # initial calculations we need to copy the pwscf file from the previous calculation
@@ -198,7 +198,7 @@ mpirun -np {1} {2} -inp {3}.in -npool {4} | tee {3}.out
     else:
         if (ppn == 1 and nodes == 1):
             script += '''cd {0}
-{1} pwscf.* {2}
+{1} pwscf.atwfc* pwscf.satwfc1* pwscf.wfc* pwscf.occup pwscf.igk* pwscf.save {2}
 {5}
 cd {2}
 {3} < {4}.in | tee {4}.out
@@ -206,7 +206,7 @@ cd {2}
              names[0], update_atoms.format(dirs[0]))
         else:
             script += '''cd {0}
-{1} pwscf.* {2}
+{1} pwscf.atwfc* pwscf.satwfc1* pwscf.wfc* pwscf.occup pwscf.igk* pwscf.save {2}
 {7}
 cd {2}
 mpirun -np {3} {4} -inp {5}.in -npool {6} | tee {5}.out
@@ -216,7 +216,7 @@ mpirun -np {3} {4} -inp {5}.in -npool {6} | tee {5}.out
     # Now do the rest of the calculations
     if (ppn == 1 and nodes == 1):                    
         for d, n, r in zip(dirs[1:], names[1:], executables[1:]):
-            script +='''{0} pwscf.* {1}
+            script +='''{0} pwscf.atwfc* pwscf.satwfc1* pwscf.wfc* pwscf.occup pwscf.igk* pwscf.save {1}
 {4}
 cd {1}
 {2} < {3}.in | tee {3}.out
@@ -224,7 +224,7 @@ cd {1}
 
     else:
         for d, n, r in zip(dirs[1:], names[1:], executables[1:]):
-            script +='''{0} pwscf.* {1}
+            script +='''{0} pwscf.atwfc* pwscf.satwfc1* pwscf.wfc* pwscf.occup pwscf.igk* pwscf.save {1}
 {6}
 cd {1}
 mpirun -np {2} {3} -inp {4}.in -npool {5} | tee {4}.out
