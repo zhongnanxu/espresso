@@ -900,6 +900,7 @@ class Espresso(Calculator):
         self.energy_hubbard = 0
         self.all_cells.append(self.atoms.get_cell())
         self.all_pos.append(self.atoms.get_positions())
+        self.steps = []
         for i, line in enumerate(lines):
             energy_free = read_energy(line)
             if not energy_free == None:
@@ -936,7 +937,7 @@ class Espresso(Calculator):
 
             steps = read_scf_steps(i, line)
             if not steps == None:
-                self.steps = steps
+                self.steps.append(steps)
 
             walltime = read_walltime(i, line)
             if not walltime == None:
@@ -966,7 +967,10 @@ class Espresso(Calculator):
         return self.walltime
 
     def get_scf_steps(self):
-        return self.steps
+        return self.steps[-1] # Note for ionic relaxation, this returns the amount of steps in the last step
+
+    def get_ionic_steps(self):
+        return len(self.steps)
 
     def get_diago_thr_init(self):
         return self.diago_thr_init
