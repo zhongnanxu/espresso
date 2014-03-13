@@ -57,7 +57,7 @@ def run_scf(self, patoms, center=True):
 
     # Now create folders for each perturbation and run the scf calculations
     cwd = os.getcwd()
-    original_filename = self.filename
+    original_filename = self.old_filename
     pert_atom_indexes = []
     ready = True
     for i, key in enumerate(keys):
@@ -76,10 +76,10 @@ def run_scf(self, patoms, center=True):
             pos = self.atoms.get_positions()
             trans = pos[sort.index(key)]
             self.atoms.translate(-trans)
-        self.filename = original_filename + '-{0:d}-pert'.format(i)
-        if not os.path.isdir(self.filename):
-            os.makedirs(self.filename)
-        os.chdir(self.filename)
+        self.old_filename = original_filename + '-{0:d}-pert'.format(i)
+        if not os.path.isdir(self.old_filename):
+            os.makedirs(self.old_filename)
+        os.chdir(self.old_filename)
         if self.check_calc_complete() == False and not self.job_in_queue():
             self.write_input()
             self.run_params['jobname'] = self.espressodir + '-{0:d}-scf'.format(i)
@@ -87,7 +87,7 @@ def run_scf(self, patoms, center=True):
             ready = False
         os.chdir(cwd)
 
-    self.filename = original_filename
+    self.old_filename = original_filename
 
     if ready == True:
         return pert_atom_indexes
@@ -101,13 +101,13 @@ def run_perts(self, indexes, alphas=(-0.15, -0.07, 0, 0.07, 0.15),
     '''The purpose of this to to run perturbations following the scf
     calculations that were run with the self.run_scf command.'''
 
-    original_filename = self.filename
+    original_filename = self.old_filename
     cwd = os.getcwd()
     ready = True
     for i, ind in enumerate(indexes):
         i += 1 
-        self.filename = original_filename + '-{0:d}-pert'.format(i)
-        os.chdir(self.filename)
+        self.old_filename = original_filename + '-{0:d}-pert'.format(i)
+        os.chdir(self.old_filename)
         # First check if the self-consistent calculation is complete
         if (self.check_calc_complete() == False or self.job_in_queue()):
             os.chdir(cwd)
@@ -117,7 +117,7 @@ def run_perts(self, indexes, alphas=(-0.15, -0.07, 0, 0.07, 0.15),
                              walltime=walltime, mem=mem):
             ready = False
         os.chdir(cwd)
-    self.filename = original_filename
+    self.old_filename = original_filename
     return ready
 
 Espresso.run_perts = run_perts
@@ -141,7 +141,7 @@ def calc_Us(self, patoms, alphas=(-0.15, -0.07, 0, 0.07, 0.15), test=False, sc=1
 
     cwd = os.getcwd()
     for i, key in enumerate(keys):
-        os.chdir(self.filename + '-{0:d}-pert'.format(i + 1))
+        os.chdir(self.old_filename + '-{0:d}-pert'.format(i + 1))
         # First assert that the calculations are done            
         for alpha in alphas:
             assert isfile('results/alpha_{0}.out'.format(alpha))
@@ -259,7 +259,7 @@ def write_pert(self, alphas=(-0.15, -0.07, 0.0, 0.07, 0.15,), index=1, parallel=
     import fnmatch
 
     # First, read the diago_thr_init, which is needed for the perturbation
-    scf_out = open(self.filename + '.out', 'r')
+    scf_out = open(self.old_filename + '.out', 'r')
     for line in scf_out.readlines():
         if line.lower().startswith('     ethr'):
             ethr = float(line.split()[2].translate(None, ','))
@@ -283,7 +283,7 @@ def write_pert(self, alphas=(-0.15, -0.07, 0.0, 0.07, 0.15,), index=1, parallel=
     # Now create the input files that need to be run. These need to each
     # be in their own directory
     for alpha in run_alphas:
-        orig_file = open(self.filename + '.in', 'r')
+        orig_file = open(self.old_filename + '.in', 'r')
         lines = orig_file.readlines()
         # Also delete old files that were left from previous calculations
         try:
@@ -343,7 +343,7 @@ def run_pert(self, alphas=(-0.15, -0.07, 0, 0.07, 0.15), index=1, test=False,
     else:
         self.run_params['jobname'] += '-pert'
 
-    run_file_name = self.filename + '.run'
+    run_file_name = self.old_filename + '.run'
 
     np = self.run_params['nodes'] * self.run_params['ppn']
     
