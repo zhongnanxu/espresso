@@ -850,6 +850,12 @@ class Espresso(Calculator):
                     return True
             return None
 
+        def read_calc_finished(line):
+            if line.lower().startswith('   job done'):
+                return True
+            else:
+                return None
+
         def read_cell(i, line, lines):
             new_cell = []
             if line.lower().startswith('cell_parameters'):
@@ -901,7 +907,7 @@ class Espresso(Calculator):
             if line.lower().startswith('     the fermi energy'):
                 fermi = float(line.split()[-2])
                 return fermi
-            return None
+            return None    
             
         if outfile == None:
             if isfile(self.filename + '.out'):
@@ -911,7 +917,9 @@ class Espresso(Calculator):
         else:
             out_file = open(outfile, 'r')
         lines = out_file.readlines()
+
         self.converged = False
+        self.calc_finished = False
         self.all_energies, self.all_forces, self.all_cells, self.all_pos = [], [], [], []
         self.energy_hubbard = 0
         self.all_cells.append(self.atoms.get_cell())
@@ -940,6 +948,10 @@ class Espresso(Calculator):
             if not converged == None:
                 self.converged = converged
 
+            calc_finished = read_calc_finished(line)
+            if not calc_finished == None:
+                self.calc_finished = calc_finished
+
             cell = read_cell(i, line, lines)
             if not cell == None:
                 self.all_cells.append(cell)
@@ -967,6 +979,15 @@ class Espresso(Calculator):
             if not fermi == None:
                 self.fermi = fermi
             
+        
+        # In the off chance that the calculation fails in the last
+        # electronic convergence in a relaxation, espresso.py will
+        # think its converged
+        if self.calc_finished == False:
+            self.converged = False
+
+        # self.all_pos and self.all_cells are used for making the 
+        # trajectory file. 
         self.all_pos.pop()
         if len(self.all_cells) > 1:
             self.all_cells.pop()
