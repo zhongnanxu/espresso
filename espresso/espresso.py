@@ -1016,20 +1016,34 @@ class Espresso(Calculator):
         if filename == None:
             filename = self.filename + '.out'
             old_filename = self.old_filename + '.out'
-        if isfile(filename):
-            pass
-        elif isfile(old_filename):
-            filename = old_filename
-        else:
-            return False
 
-        f = open(filename, 'r')
-        lines = f.readlines()
-        done = False
-        for line in lines:
-            if line.lower().startswith('     convergence has been achieved'):
-                done = True
-        return done
+            if isfile(filename):
+                pass
+            elif isfile(old_filename):
+                filename = old_filename
+            else:
+                return False
+
+            f = open(filename, 'r')
+            lines = f.readlines()
+            done = False
+            for line in lines:
+                if line.lower().startswith('     convergence has been achieved'):
+                    done = True
+            return done
+
+        else:
+            if not isfile(filename):
+                return False
+
+            f = open(filename, 'r')
+            lines = f.readlines()
+            done = False
+            for line in lines:
+                if line.lower().startswith('     convergence has been achieved'):
+                    done = True
+            return done
+
 
 # Import the rest of the functions
 from espresso_lrU import *
