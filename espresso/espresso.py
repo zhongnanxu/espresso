@@ -956,7 +956,7 @@ class Espresso(Calculator):
                 self.converged = converged
 
             electronic_converged = read_electronic_convergence(line)
-            if not electron_converged == None:
+            if not electronic_converged == None:
                 self.electronic_converged = electronic_converged
 
             calc_finished = read_calc_finished(line)
