@@ -839,6 +839,12 @@ class Espresso(Calculator):
 
             return None
 
+        def read_electronic_convergence(line):
+            if line.lower().startswith('     convergence not achieved'):
+                return False
+            else:
+                return None
+
         def read_convergence(line):
             if (self.string_params['calculation'] not in ('relax', 'vc-relax')):
                 if line.lower().startswith('     convergence has been achieved'):
@@ -919,6 +925,7 @@ class Espresso(Calculator):
         lines = out_file.readlines()
 
         self.converged = False
+        self.electronic_converged = True
         self.calc_finished = False
         self.all_energies, self.all_forces, self.all_cells, self.all_pos = [], [], [], []
         self.energy_hubbard = 0
@@ -947,6 +954,10 @@ class Espresso(Calculator):
             converged = read_convergence(line)
             if not converged == None:
                 self.converged = converged
+
+            electronic_converged = read_electronic_convergence(line)
+            if not electron_converged == None:
+                self.electronic_converged = electronic_converged
 
             calc_finished = read_calc_finished(line)
             if not calc_finished == None:
