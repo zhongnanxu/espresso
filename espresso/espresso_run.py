@@ -43,6 +43,8 @@ def run(self, series=False):
     if self.run_params['mem'] != None:
         script += '#PBS -l mem={0}\n'.format(self.run_params['mem'])
 
+    if self.run_params['queue'] != None:
+        script += '#PBS -q {0}\n'.format(self.run_params['queue'])
 
     # Now add the parts of the script for running calculations
     script += '\ncd $PBS_O_WORKDIR\n'

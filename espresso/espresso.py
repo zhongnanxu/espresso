@@ -198,6 +198,7 @@ class Espresso(Calculator):
                            'processor':None,
                            'mem': None,
                            'jobname': None,
+                           'queue': None,
                            'restart': False,
                            'dos':False}
 

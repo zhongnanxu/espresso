@@ -57,7 +57,7 @@ def run_scf(self, patoms, center=True):
 
     # Now create folders for each perturbation and run the scf calculations
     cwd = os.getcwd()
-    original_filename = self.old_filename
+    calc_name = os.path.basename(self.espressodir)
     pert_atom_indexes = []
     ready = True
     for i, key in enumerate(keys):
@@ -76,18 +76,17 @@ def run_scf(self, patoms, center=True):
             pos = self.atoms.get_positions()
             trans = pos[sort.index(key)]
             self.atoms.translate(-trans)
-        self.old_filename = original_filename + '-{0:d}-pert'.format(i)
-        if not os.path.isdir(self.old_filename):
-            os.makedirs(self.old_filename)
-        os.chdir(self.old_filename)
+        if not os.path.isdir(calc_name + '-{0:d}-pert'.format(i)):
+            os.makedirs(calc_name + '-{0:d}-pert'.format(i))
+        os.chdir(calc_name + '-{0:d}-pert'.format(i))
         if self.check_calc_complete() == False and not self.job_in_queue():
             self.write_input()
             self.run_params['jobname'] = self.espressodir + '-{0:d}-scf'.format(i)
             self.run(series=True)
             ready = False
+        elif self.job_in_queue():
+            ready = False
         os.chdir(cwd)
-
-    self.old_filename = original_filename
 
     if ready == True:
         return pert_atom_indexes
@@ -96,28 +95,24 @@ def run_scf(self, patoms, center=True):
 
 Espresso.run_scf = run_scf
     
-def run_perts(self, indexes, alphas=(-0.15, -0.07, 0, 0.07, 0.15),
-              test=False, walltime='50:00:00', mem='2GB'):
+def run_perts(self, indexes, alphas=(-0.15, -0.07, 0, 0.07, 0.15), test=False):
     '''The purpose of this to to run perturbations following the scf
     calculations that were run with the self.run_scf command.'''
 
-    original_filename = self.old_filename
+    calc_name = os.path.basename(self.espressodir)
     cwd = os.getcwd()
     ready = True
     for i, ind in enumerate(indexes):
         i += 1 
-        self.old_filename = original_filename + '-{0:d}-pert'.format(i)
-        os.chdir(self.old_filename)
+        os.chdir(calc_name + '-{0:d}-pert'.format(i))
         # First check if the self-consistent calculation is complete
         if (self.check_calc_complete() == False or self.job_in_queue()):
             os.chdir(cwd)
             continue
-        self.run_params['jobname']  = self.espressodir + '-{0:d}'.format(i)
-        if not self.run_pert(alphas=alphas, index=ind, test=test,
-                             walltime=walltime, mem=mem):
+        self.run_params['jobname']  = calc_name + '-{0:d}'.format(i)
+        if not self.run_pert(alphas=alphas, index=ind, test=test):
             ready = False
         os.chdir(cwd)
-    self.old_filename = original_filename
     return ready
 
 Espresso.run_perts = run_perts
@@ -129,6 +124,7 @@ def calc_Us(self, patoms, alphas=(-0.15, -0.07, 0, 0.07, 0.15), test=False, sc=1
     in systems with multiple atoms perturbed'''
 
     sort = self.initialize_lrU(patoms)
+    calc_name = os.path.basename(self.espressodir)
 
     if not isdir ('Ucalc'):
         os.mkdir('Ucalc')
@@ -141,7 +137,7 @@ def calc_Us(self, patoms, alphas=(-0.15, -0.07, 0, 0.07, 0.15), test=False, sc=1
 
     cwd = os.getcwd()
     for i, key in enumerate(keys):
-        os.chdir(self.old_filename + '-{0:d}-pert'.format(i + 1))
+        os.chdir(calc_name + '-{0:d}-pert'.format(i + 1))
         # First assert that the calculations are done            
         for alpha in alphas:
             assert isfile('results/alpha_{0}.out'.format(alpha))
@@ -259,7 +255,7 @@ def write_pert(self, alphas=(-0.15, -0.07, 0.0, 0.07, 0.15,), index=1, parallel=
     import fnmatch
 
     # First, read the diago_thr_init, which is needed for the perturbation
-    scf_out = open(self.old_filename + '.out', 'r')
+    scf_out = open(self.filename + '.out', 'r')
     for line in scf_out.readlines():
         if line.lower().startswith('     ethr'):
             ethr = float(line.split()[2].translate(None, ','))
@@ -283,7 +279,7 @@ def write_pert(self, alphas=(-0.15, -0.07, 0.0, 0.07, 0.15,), index=1, parallel=
     # Now create the input files that need to be run. These need to each
     # be in their own directory
     for alpha in run_alphas:
-        orig_file = open(self.old_filename + '.in', 'r')
+        orig_file = open(self.filename + '.in', 'r')
         lines = orig_file.readlines()
         # Also delete old files that were left from previous calculations
         try:
@@ -321,8 +317,7 @@ def write_pert(self, alphas=(-0.15, -0.07, 0.0, 0.07, 0.15,), index=1, parallel=
 
 Espresso.write_pert = write_pert
     
-def run_pert(self, alphas=(-0.15, -0.07, 0, 0.07, 0.15), index=1, test=False,
-             walltime='50:00:00', mem='2GB'):
+def run_pert(self, alphas=(-0.15, -0.07, 0, 0.07, 0.15), index=1, test=False):
     '''Now we create the runscript that performs the calculations. This will
     be tricky because we need to write a script that copies the saved files
     from the previous calculation to be used in these perturbation calculations.
@@ -343,7 +338,7 @@ def run_pert(self, alphas=(-0.15, -0.07, 0, 0.07, 0.15), index=1, test=False,
     else:
         self.run_params['jobname'] += '-pert'
 
-    run_file_name = self.old_filename + '.run'
+    run_file_name = self.filename + '.pert.run'
 
     np = self.run_params['nodes'] * self.run_params['ppn']
     
@@ -367,6 +362,9 @@ def run_pert(self, alphas=(-0.15, -0.07, 0, 0.07, 0.15), index=1, test=False,
     if self.run_params['mem'] != None:
         script += '#PBS -l mem={0}\n'.format(self.run_params['mem'])
 
+    if self.run_params['queue'] != None:
+        script += '#PBS -q {0}\n'.format(self.run_params['queue'])
+
     # Now add the parts of the script for running calculations
     script += '\ncd $PBS_O_WORKDIR\n'
 
@@ -374,14 +372,14 @@ def run_pert(self, alphas=(-0.15, -0.07, 0, 0.07, 0.15), index=1, test=False,
 
     if self.run_params['ppn'] == 1:
         for alpha in run_alphas:
-            run_script = '''cp -r pwscf.* alpha_{0}/
+            run_script = '''cp -r pwscf.atwfc* pwscf.satwfc1* pwscf.wfc* pwscf.occup pwscf.igk* pwscf.save alpha_{0}/
 {1} < alpha_{0}/alpha_{0}.in > results/alpha_{0}.out
 rm -fr alpha_{0}/pwscf.*
 '''.format(alpha, run_cmd)
             script += run_script
     else:
         for alpha in run_alphas:
-            run_script = '''cp -r pwscf.* alpha_{0}/
+            run_script = '''cp -r pwscf.atwfc* pwscf.satwfc1* pwscf.wfc* pwscf.occup pwscf.igk* pwscf.save alpha_{0}/
 mpirun -np {1:d} {2} -inp alpha_{0}/alpha_{0}.in -npool {3} > results/alpha_{0}.out
 rm -fr alpha_{0}/pwscf.*
 '''.format(alpha, np, run_cmd, self.run_params['pools'])
@@ -412,6 +410,7 @@ def read_Us(self, f='Umat.out'):
     if not isdir('Ucalc'):
         return
 
+    cwd = os.getcwd()
     os.chdir('Ucalc')
 
     Ufile = open(f, 'r')
@@ -424,6 +423,8 @@ def read_Us(self, f='Umat.out'):
                 Us.append(float(lines[i].split()[-1]))
                 i += 1
             break
+
+    os.chdir(cwd)
         
     return Us
 
