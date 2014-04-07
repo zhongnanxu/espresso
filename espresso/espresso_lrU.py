@@ -446,7 +446,7 @@ def get_linear_response_Us(self, patoms, center=True, alphas=(-0.15, -0.07, 0, 0
     # function will return True and will proceed to calculate the linear response U
     walltime = self.run_params['walltime']
     mem = self.run_params['mem']
-    if not self.run_perts(pert_atom_indexes, alphas, walltime, mem):
+    if not self.run_perts(pert_atom_indexes, alphas, test=False):
         print self.espressodir, 'PERT Running'
         return
     
