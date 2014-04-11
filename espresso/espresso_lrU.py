@@ -301,6 +301,7 @@ def write_pert(self, alphas=(-0.15, -0.07, 0.0, 0.07, 0.15,), index=1, parallel=
         for line in lines:
             if line.split()[0].lower() == '&control':
                 new_file.write(line)
+                new_file.write(" disk_io = 'none'\n")
                 new_file.write(" outdir = 'alpha_{alpha}/'\n".format(**locals()))
             elif line.split()[0].lower() == '&electrons':
                 new_file.write(line)
@@ -310,6 +311,10 @@ def write_pert(self, alphas=(-0.15, -0.07, 0.0, 0.07, 0.15,), index=1, parallel=
             elif line.split()[0].lower() == "hubbard_alpha({0})".format(int(index)):
                 new_file.write(" Hubbard_alpha({0}) = {1}\n".format(int(index),
                                                                    alpha))
+            elif line.split()[0].lower() == 'wfcdir':
+                new_file.write(" wfcdir = './'\n")
+            elif line.split()[0].lower() == 'disk_io':
+                continue
             else:
                 new_file.write(line)
 
@@ -372,17 +377,17 @@ def run_pert(self, alphas=(-0.15, -0.07, 0, 0.07, 0.15), index=1, test=False):
 
     if self.run_params['ppn'] == 1:
         for alpha in run_alphas:
-            run_script = '''cp -r pwscf.atwfc* pwscf.satwfc1* pwscf.wfc* pwscf.occup pwscf.igk* pwscf.save alpha_{0}/
-{1} < alpha_{0}/alpha_{0}.in > results/alpha_{0}.out
+            run_script = '''cp -r pwscf.occup pwscf.save alpha_{0}/
+{1} < alpha_{0}/alpha_{0}.in | tee results/alpha_{0}.out
 rm -fr alpha_{0}/pwscf.*
 '''.format(alpha, run_cmd)
             script += run_script
     else:
         for alpha in run_alphas:
-            run_script = '''cp -r pwscf.atwfc* pwscf.satwfc1* pwscf.wfc* pwscf.occup pwscf.igk* pwscf.save alpha_{0}/
-mpirun -np {1:d} {2} -inp alpha_{0}/alpha_{0}.in -npool {3} > results/alpha_{0}.out
+            run_script = '''cp -r pwscf.occup pwscf.save alpha_{0}/
+{4} -np {1:d} {2} -inp alpha_{0}/alpha_{0}.in -npool {3} | tee results/alpha_{0}.out
 rm -fr alpha_{0}/pwscf.*
-'''.format(alpha, np, run_cmd, self.run_params['pools'])
+'''.format(alpha, np, run_cmd, self.run_params['pools'], self.run_params['mpicmd'])
 
             script += run_script
 
@@ -468,7 +473,7 @@ def run_pert_parallel(self, alphas=(-0.15, -0.07, 0, 0.07, 0.15), index=1, test=
     for alpha in run_alphas:
         script = '''#!/bin/bash
 cd $PBS_O_WORKDIR
-{0} < alpha_{1}.in > results/alpha_{1}.out
+{0} < alpha_{1}.in | tee results/alpha_{1}.out
 # end
 '''.format(run_cmd, alpha)
         if self.run_params['jobname'] == None:

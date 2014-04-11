@@ -194,12 +194,14 @@ class Espresso(Calculator):
                            'walltime': '50:00:00',
                            'nodes': 1,
                            'ppn': 1,
-                           'pools': 1, # Number k-points must be divisible by pools
+                           'pools': 4, # Number k-points must be divisible by pools
                            'processor':None,
                            'mem': None,
                            'jobname': None,
                            'queue': None,
                            'restart': False,
+			   'mpicmd': ESPRESSORC['mpicmd'],
+			   'rundir': ESPRESSORC['rundir'],
                            'dos':False}
 
         # Define a default folder for where the pseudopotentials are held
@@ -297,6 +299,7 @@ class Espresso(Calculator):
         elif atoms is not None and self.status in ('running', 'done'):
             atoms = self.get_atoms()
 
+
         # Set nbands automatically if not set manually. We want to override the
         # default, which is 1.2 * the number of electrons. We want 1.5 times
         nbands = 0
@@ -305,15 +308,12 @@ class Espresso(Calculator):
         self.int_params['nbnd'] = int(nbands * 1.5)
         self.old_int_params['nbnd'] = int(nbands * 1.5) # This is to make this backwards compatitble
 
-        # For working on the niflheim cluster where large files should be stored
-        # somewhere else. 
-        if self.string_params['wfcdir'] == True:
-            self.wfcdir = os.path.abspath(self.espressodir).replace('camp', 'niflheim2')
-            if not os.path.isdir(self.wfcdir):
-                os.makedirs(self.wfcdir)
-            self.string_params['wfcdir'] = self.wfcdir
+        # If disk_io is not 'none', we're writing large wavefunction files. Write these files on
+        # the local cluster
+        if self.string_params['disk_io'] is not 'none':
+            self.string_params['wfcdir'] = ESPRESSORC['rundir']
 
-        return        
+        return
 
     def set(self, **kwargs):
         for key in kwargs:

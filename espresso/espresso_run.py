@@ -49,13 +49,20 @@ def run(self, series=False):
     # Now add the parts of the script for running calculations
     script += '\ncd $PBS_O_WORKDIR\n'
 
+    # If disk_io is not 'none', we need to edit the input file so the wfcdir
+    # variable correctly points to the local folder where the wfc are found
+    if self.string_params['disk_io'] is not 'none':
+        script += "sed -i 's@${PBS_JOBID}@'${PBS_JOBID}'@' " + '{0}\n'.format(in_file)
+        # script += 'mkdir {0}\n'.format(self.run_params['rundir'])
+
     if np == 1:
         runscript = '{0} < {1} | tee {2}\n'
         script += runscript.format(self.run_params['executable'], in_file, out_file)
     else:
-        runscript = 'mpirun -np {0:d} {1} -inp {2} -npool {3} | tee {4}\n'
+        runscript = '{5} -np {0:d} {1} -inp {2} -npool {3} | tee {4}\n'
         script += runscript.format(np, self.run_params['executable'],
-                                   in_file, self.run_params['pools'], out_file)                                   
+                                   in_file, self.run_params['pools'], out_file, 
+                                   self.run_params['mpicmd'])                                   
 
     # If we want to perform a density of states calculation, we need
     # more runscripts
@@ -67,8 +74,14 @@ def run(self, series=False):
             rundos = 'projwfc.x < {0} | tee {1}\n'
             script += rundos.format(in_dos_filename, out_dos_filename)
         else:
-            rundos = 'mpirun -np {0:d} projwfc.x -inp {1} | tee {2}\n'
-            script += rundos.format(np, in_dos_filename, out_dos_filename)
+            rundos = '{3} -np {0:d} projwfc.x -inp {1} | tee {2}\n'
+            script += rundos.format(np, in_dos_filename, out_dos_filename, 
+                                    self.run_params['mpicmd'])
+
+    # We want to copy the wavefunction file back into the CWD
+    if self.string_params['disk_io'] is not 'none':
+        script += '\ncp -r {0}/* .\n'.format(self.run_params['rundir'])
+        script += '\nrm -fr {0}\n'.format(self.run_params['rundir'])
 
     if self.string_params['disk_io'] == 'none':
         script += 'eclean\n# end'
@@ -194,8 +207,8 @@ def run_series(name, calcs, walltime='50:00:00', ppn=1, nodes=1, processor=None,
 \n'''.format(dirs[0], executables[0], names[0])
         else:
             script += '''cd {0}
-mpirun -np {1} {2} -inp {3}.in -npool {4} | tee {3}.out
-\n'''.format(dirs[0], ppn, executables[0], names[0], pools)
+{4} -np {1} {2} -inp {3}.in -npool {4} | tee {3}.out
+\n'''.format(dirs[0], ppn, executables[0], names[0], pools, self.run_params['mpicmd'])
 
     else:
         if (ppn == 1 and nodes == 1):
@@ -211,9 +224,9 @@ cd {2}
 {1} pwscf.atwfc* pwscf.satwfc1* pwscf.wfc* pwscf.occup pwscf.igk* pwscf.save {2}
 {7}
 cd {2}
-mpirun -np {3} {4} -inp {5}.in -npool {6} | tee {5}.out
+{8} -np {3} {4} -inp {5}.in -npool {6} | tee {5}.out
 \n'''.format(done_dirs[-1], move, dirs[0], np, executables[0], 
-             names[0], pools, update_atoms.format(dirs[0]))
+             names[0], pools, update_atoms.format(dirs[0]), self.run_params['mpicmd'])
             
     # Now do the rest of the calculations
     if (ppn == 1 and nodes == 1):                    
@@ -229,8 +242,8 @@ cd {1}
             script +='''{0} pwscf.atwfc* pwscf.satwfc1* pwscf.wfc* pwscf.occup pwscf.igk* pwscf.save {1}
 {6}
 cd {1}
-mpirun -np {2} {3} -inp {4}.in -npool {5} | tee {4}.out
-\n'''.format(move, d, np, r, n, pools, update_atoms.format(d))
+{7} -np {2} {3} -inp {4}.in -npool {5} | tee {4}.out
+\n'''.format(move, d, np, r, n, pools, update_atoms.format(d), self.run_params['mpicmd'])
         
     if test == False:
         run_file = open(filename + '.run', 'w')
