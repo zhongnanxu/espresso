@@ -301,6 +301,7 @@ def write_pert(self, alphas=(-0.15, -0.07, 0.0, 0.07, 0.15,), index=1, parallel=
         for line in lines:
             if line.split()[0].lower() == '&control':
                 new_file.write(line)
+                new_file.write(" wfcdir = './'\n")
                 new_file.write(" disk_io = 'none'\n")
                 new_file.write(" outdir = 'alpha_{alpha}/'\n".format(**locals()))
             elif line.split()[0].lower() == '&electrons':
@@ -338,13 +339,9 @@ def run_pert(self, alphas=(-0.15, -0.07, 0, 0.07, 0.15), index=1, test=False):
     if self.job_in_queue():
         return
 
-    if self.run_params['jobname'] == None:
-        self.run_params['jobname'] = self.espressodir + '-pert'
-    else:
-        self.run_params['jobname'] += '-pert'
-
+    self.run_params['jobname'] = (os.path.dirname(self.espressodir) + '/' + 
+                                  self.run_params['jobname'] + '-pert')
     run_file_name = self.filename + '.pert.run'
-
     np = self.run_params['nodes'] * self.run_params['ppn']
     
     # Start the run script

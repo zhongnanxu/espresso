@@ -310,7 +310,8 @@ class Espresso(Calculator):
 
         # If disk_io is not 'none', we're writing large wavefunction files. Write these files on
         # the local cluster
-        if self.string_params['disk_io'] is not 'none':
+        if (self.string_params['disk_io'] is not 'none' 
+            and self.string_params['wfcdir'] is None):
             self.string_params['wfcdir'] = ESPRESSORC['rundir']
 
         return
