@@ -82,9 +82,9 @@ def run_scf(self, patoms, center=True):
         if self.check_calc_complete() == False and not self.job_in_queue():
             self.write_input()
             self.run_params['jobname'] = self.espressodir + '-{0:d}-scf'.format(i)
-            self.run(series=True)
+            self.run(series=True, jobid='jobid-SCF')
             ready = False
-        elif self.job_in_queue():
+        elif self.job_in_queue(jobid='jobid-SCF'):
             ready = False
         os.chdir(cwd)
 
@@ -106,7 +106,7 @@ def run_perts(self, indexes, alphas=(-0.15, -0.07, 0, 0.07, 0.15), test=False):
         i += 1 
         os.chdir(calc_name + '-{0:d}-pert'.format(i))
         # First check if the self-consistent calculation is complete
-        if (self.check_calc_complete() == False or self.job_in_queue()):
+        if (self.check_calc_complete() == False or self.job_in_queue(jobid='jobid-SCF')):
             os.chdir(cwd)
             continue
         self.run_params['jobname']  = calc_name + '-{0:d}'.format(i)

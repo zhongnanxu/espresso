@@ -336,13 +336,13 @@ class Espresso(Calculator):
                 raise TypeError('Parameter not defined: ' + key)
         return
 
-    def job_in_queue(self):
+    def job_in_queue(self, jobid='jobid'):
         '''return True or False if the directory has a job in the queue'''
-        if not os.path.exists('jobid'):
+        if not os.path.exists(jobid):
             return False
         else:
             # get the jobid
-            jobid = open('jobid').readline().strip()
+            jobid = open(jobid).readline().strip()
 
             # see if jobid is in queue
             jobids_in_queue = commands.getoutput('qselect').split('\n')

@@ -4,7 +4,7 @@
 
 from espresso import *
 
-def run(self, series=False):
+def run(self, series=False, jobid='jobid'):
     """Submits a calculation to the queue
 
     The settings for running the calculation are specified as kwargs
@@ -98,7 +98,7 @@ def run(self, series=False):
     if out == '' or err !='':
         raise Exception('something went wrong in qsub:\n\n{0}'.format(err))
 
-    f = open('jobid', 'w')
+    f = open(jobid, 'w')
     f.write(out)
     f.close()
 
@@ -162,8 +162,9 @@ def run_series(name, calcs, walltime='50:00:00', ppn=1, nodes=1, processor=None,
                 fields = lines[2].split()
                 job_status = fields[4]
                 if job_status != 'C':
+                    os.chdir(cwd)
                     return
-                
+
     # Begin writing the script we need to submit to run. If we are restarting from finished
     # initial calculations we need to copy the pwscf file from the previous calculation
 
