@@ -294,11 +294,8 @@ class Espresso(Calculator):
         self.int_params['nat'] = len(self.atoms)
         self.int_params['ntyp'] = len(self.unique_set)
         self.int_params['ibrav'] = 0 
-        if atoms is not None and self.status == 'empty':
-            atoms.calc = self
-        elif atoms is not None and self.status in ('running', 'done'):
-            atoms = self.get_atoms()
-
+        if atoms is not None:
+            atoms.calc = self            
 
         # Set nbands automatically if not set manually. We want to override the
         # default, which is 1.2 * the number of electrons. We want 1.5 times
@@ -521,7 +518,7 @@ class Espresso(Calculator):
         self.calculate(force=force)
         return
         
-    def calculate(self, force=False):
+    def calculate(self, atoms=None, force=False):
         """Generate necessary files in working directory and run QuantumEspresso
         
         The method first writes a [name].in file. Then it 
