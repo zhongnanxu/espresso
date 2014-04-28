@@ -208,8 +208,8 @@ def run_series(name, calcs, walltime='50:00:00', ppn=1, nodes=1, processor=None,
 \n'''.format(dirs[0], executables[0], names[0])
         else:
             script += '''cd {0}
-{4} -np {1} {2} -inp {3}.in -npool {4} | tee {3}.out
-\n'''.format(dirs[0], ppn, executables[0], names[0], pools, self.run_params['mpicmd'])
+{5} -np {1} {2} -inp {3}.in -npool {4} | tee {3}.out
+\n'''.format(dirs[0], ppn, executables[0], names[0], pools, calc.run_params['mpicmd'])
 
     else:
         if (ppn == 1 and nodes == 1):
@@ -227,7 +227,7 @@ cd {2}
 cd {2}
 {8} -np {3} {4} -inp {5}.in -npool {6} | tee {5}.out
 \n'''.format(done_dirs[-1], move, dirs[0], np, executables[0], 
-             names[0], pools, update_atoms.format(dirs[0]), self.run_params['mpicmd'])
+             names[0], pools, update_atoms.format(dirs[0]), calc.run_params['mpicmd'])
             
     # Now do the rest of the calculations
     if (ppn == 1 and nodes == 1):                    
@@ -244,7 +244,7 @@ cd {1}
 {6}
 cd {1}
 {7} -np {2} {3} -inp {4}.in -npool {5} | tee {4}.out
-\n'''.format(move, d, np, r, n, pools, update_atoms.format(d), self.run_params['mpicmd'])
+\n'''.format(move, d, np, r, n, pools, update_atoms.format(d), calc.run_params['mpicmd'])
         
     if test == False:
         run_file = open(filename + '.run', 'w')
