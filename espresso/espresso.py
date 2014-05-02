@@ -969,9 +969,9 @@ class Espresso(Calculator):
             
             scaled_pos = read_positions(i, line, lines)
             if not scaled_pos == None:
-                pos = np.dot(scaled_pos, self.atoms.get_cell())
-                self.all_pos.append(pos)
-                self.atoms.set_positions(pos)
+                self.atoms.set_scaled_positions(scaled_pos)
+                self.all_pos.append(self.atoms.get_positions())
+                
 
             steps = read_scf_steps(i, line)
             if not steps == None:

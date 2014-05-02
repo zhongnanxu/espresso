@@ -267,3 +267,18 @@ cd {1}
     os.chdir(cwd)
 
     return 
+
+def get_series(calcs):
+    '''The purpose of this function is to gather the piece of information from a series
+    of calculations. Currently, the only thing this works on are the energies
+    '''
+
+    energies = []
+    for CALC in calcs:
+        with CALC as calc:
+            try:
+                energies.append(calc.energy_free)
+            except:
+                energies.append(np.nan)
+
+    return energies
