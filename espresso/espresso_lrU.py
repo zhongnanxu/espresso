@@ -3,8 +3,6 @@
 """
 
 from espresso import *
-from pycse import regress
-from uncertainties import ufloat
 
 #################################
 ## Linear response U functions ##
@@ -504,6 +502,9 @@ Espresso.read_Us = read_Us
 def get_linear_response_Us(self, patoms, center=True, alphas=(-0.15, -0.07, 0, 0.07, 0.15)):
     '''This is a convenience function that does all of the calculations needed to 
     calculate the linear response U value'''
+
+    from pycse import regress
+    from uncertainties import ufloat
 
     # First try running the self-consistent calculation. If it is finished
     # it will return the indexes of the atoms (Quantum-Espresso format) that
