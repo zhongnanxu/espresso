@@ -3,6 +3,8 @@
 """
 
 from espresso import *
+from pycse import regress
+from uncertainties import ufloat
 
 #################################
 ## Linear response U functions ##
@@ -79,7 +81,7 @@ def run_scf(self, patoms, center=True):
         if not os.path.isdir(calc_name + '-{0:d}-pert'.format(i)):
             os.makedirs(calc_name + '-{0:d}-pert'.format(i))
         os.chdir(calc_name + '-{0:d}-pert'.format(i))
-        if self.check_calc_complete() == False and not self.job_in_queue():
+        if self.check_calc_complete() == False and not self.job_in_queue(jobid='jobid-SCF'):
             self.write_input()
             self.run_params['jobname'] = self.espressodir + '-{0:d}-scf'.format(i)
             self.run(series=True, jobid='jobid-SCF')
@@ -241,7 +243,74 @@ def calc_Us(self, patoms, alphas=(-0.15, -0.07, 0, 0.07, 0.15), test=False, sc=1
     return
 
 Espresso.calc_Us = calc_Us
+
+def python_calc_single_U(self, patoms, alphas=(-0.15, -0.07, 0, 0.07, 0.15)):
+    '''This is a function to calculate the linear response U of a single atom'''
+
+    sort = self.initialize_lrU(patoms)
+    calc_name = os.path.basename(self.espressodir)
+
+    if not isdir ('Ucalc'):
+        os.mkdir('Ucalc')
+
+    keys = sorted(patoms.keys())
+    allatoms = []
+    for key in keys:
+        for index in patoms[key]:
+            allatoms.append(index)
+
+    cwd = os.getcwd()
+
+    os.chdir(calc_name + '-1-pert')
+    # First assert that the calculations are done            
+    for alpha in alphas:
+        assert isfile('results/alpha_{0}.out'.format(alpha))
+        assert self.check_calc_complete(filename='results/alpha_{0}.out'.format(alpha))
+
+    # First create the matrix for storing occupancies
+    bare = np.zeros([len(allatoms), len(allatoms)])
+    convg = np.zeros([len(allatoms), len(allatoms)])
+        
+
+    # Store the initial and final occupations in arrays
+    for alpha in alphas:
+        outfile = open('results/alpha_{0}.out'.format(alpha))
+        lines = outfile.readlines()
+        calc_started = False
+        calc_finished = False
+        for line in lines:
+            # We first want to read the initial occupancies. This happens after
+            # the calculation starts.
+            if line.startswith('     Self'):
+                calc_started = True
+            if line.startswith('     End'):
+                calc_finished = True
+            # We will first 
+            if not line.startswith('atom '):
+                continue
+            occ = float(line.split()[-1])
+            if calc_started == True and calc_finished == False:
+                occ_0s.append(occ)
+            elif calc_finished == True:
+                occ_fs.append(occ)
+            else:
+                continue
+    os.chdir(cwd)
+
+    x = np.column_stack([np.array(alphas)**0, np.array(alphas)])
+
+    bare_slope, bare_uncert, bare_e = regress(x, occ_0s, 0.05)
+    convg_slope, convg_uncert, convg_e = regress(x, occ_fs, 0.05)
     
+    bare_slope = ufloat(bare_slope[1], (abs(bare_uncert[1][0] - bare_uncert[1][1])) / 2)
+    convg_slope = ufloat(convg_slope[1], (abs(convg_uncert[1][0] - convg_uncert[1][1])) / 2)
+    
+    U =  1 / bare_slope - 1 / convg_slope
+
+    return U
+
+Espresso.python_calc_single_U = python_calc_single_U
+
 def write_pert(self, alphas=(-0.15, -0.07, 0.0, 0.07, 0.15,), index=1, parallel=False):
     '''The purpose of this function is to calculate the linear response U
     after a self-consistent calculation has already been done. Some notes:
@@ -497,7 +566,6 @@ cd $PBS_O_WORKDIR
     return
 
 Espresso.run_pert_parallel = run_pert_parallel
-
 
 def calc_U(self, dict_index, alphas=(-0.15, -0.07, 0, 0.07, 0.15), test=False, sc=1):
     '''The purpose of this program is to take the data out of the
