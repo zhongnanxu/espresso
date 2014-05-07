@@ -305,6 +305,12 @@ class Espresso(Calculator):
         self.int_params['nbnd'] = int(nbands * 1.5)
         self.old_int_params['nbnd'] = int(nbands * 1.5) # This is to make this backwards compatitble
 
+        # Have the default behavior print out tstress and tprnfor because they're important
+        if self.bool_params['tstress'] is not False:
+            self.set(tstress=True)
+        if self.bool_params['tprnfor'] is not False:
+            self.set(tprnfor=True)
+
         # If disk_io is not 'none', we're writing large wavefunction files. Write these files on
         # the local cluster
         if (self.string_params['disk_io'] is not 'none' 
