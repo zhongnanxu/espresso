@@ -380,7 +380,8 @@ def write_pert(self, alphas=(-0.15, -0.07, 0.0, 0.07, 0.15,), index=1, parallel=
                 new_file.write(" Hubbard_alpha({0}) = {1}\n".format(int(index),
                                                                    alpha))
             elif line.split()[0].lower() == 'wfcdir':
-                new_file.write(" wfcdir = './'\n")
+                continue
+                # new_file.write(" wfcdir = './'\n")
             elif line.split()[0].lower() == 'disk_io':
                 continue
             else:
