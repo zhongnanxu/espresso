@@ -201,8 +201,7 @@ class Espresso(Calculator):
                            'queue': None,
                            'restart': False,
 			   'mpicmd': ESPRESSORC['mpicmd'],
-			   'rundir': ESPRESSORC['rundir'],
-                           'dos':False}
+			   'rundir': ESPRESSORC['rundir']}
 
         # Define a default folder for where the pseudopotentials are held
         if self.string_params['pseudo_dir'] == None:
@@ -575,7 +574,8 @@ class Espresso(Calculator):
                         and isinstance(self.list_params[key], Iterable)):
                         for item in self.list_params[key]:
                             s = ' {0}({1:d},{2:d},{3:d}) = {4:.8g}\n'
-                            in_file.write(s.format(key, item[0], item[1], item[2], item[3]))
+                            in_file.write(s.format(key, int(item[0]), int(item[1]), 
+                                                   int(item[2]), int(item[3])))
                     else:
                         for ikey, item in enumerate(self.list_params[key]):
                             in_file.write(' {0}({1:d}) = {2:.8g}\n'.format(key, ikey+1, item))
@@ -637,17 +637,6 @@ class Espresso(Calculator):
         self.list_params['starting_magnetization'] = old_starting_magnetization
         self.list_params['Hubbard_U'] = old_Hubbard_U
         self.list_params['Hubbard_alpha'] = old_Hubbard_alpha
-        
-        return
-
-    def write_dos_input(self):
-        """Writes the input file for the dos calculation."""
-
-        in_file = open(self.filename + '.dos.in', 'w')
-        
-        in_file.write('&PROJWFC\n')
-        in_file.write('/\n')
-        in_file.close()
         
         return
 

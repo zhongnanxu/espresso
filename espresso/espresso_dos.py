@@ -3,6 +3,7 @@
 
 import numpy as np
 from espresso import *
+from subprocess import call
 
 class EspressoDos(object):
     """Class for representing density-of-states produced via quantum-espresso
@@ -25,6 +26,13 @@ class EspressoDos(object):
             self.prefix = self.calc.string_params['prefix']
 
         natoms = self.calc.atoms.get_number_of_atoms()
+
+        # First generate the DOS files if they are not there yet
+        if not os.path.exists(self.prefix + 'dos.out'):
+            self.write_dos_input()
+            dos_input = open(self.prefix + '.dos.in', 'r')
+            dos_output = open(self.prefix + '.dos.out', 'w')
+            call(['projwfc.x'], stdin=dos_input, stdout=dos_output)
 
         # Because the output depends on the pseudopotential,
         # we first need to store which projections we need.
@@ -77,6 +85,17 @@ class EspressoDos(object):
         
         return
 
+    def write_dos_input(self):
+        """Writes the input file for the dos calculation."""
+
+        in_file = open(self.prefix + '.dos.in', 'w')
+        
+        in_file.write('&PROJWFC\n')
+        in_file.write('/\n')
+        in_file.close()
+        
+        return
+
     def update(self, atom, orbital):
         '''Check to see if we need to read the specific data'''
 
@@ -91,8 +110,7 @@ class EspressoDos(object):
         dos  = self.read_dosfile(fname, orbital[-1])
         self.dos_dict[atom][orbital] = dos
         
-        return
-        
+        return        
 
     def read_dosfile(self, fname, orbital):
         '''This read a single file and returns a dictionary file that contains

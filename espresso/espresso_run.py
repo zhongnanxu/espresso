@@ -64,23 +64,12 @@ def run(self, series=False, jobid='jobid'):
                                    in_file, self.run_params['pools'], out_file, 
                                    self.run_params['mpicmd'])                                   
 
-    # If we want to perform a density of states calculation, we need
-    # more runscripts
-    if self.run_params['dos'] == True:
-        self.write_dos_input()
-        in_dos_filename = self.filename + '.dos.in'
-        out_dos_filename = self.filename + '.dos.out'
-        if (self.run_params['ppn'] == 1 and self.run_params['nodes'] == 1):
-            rundos = 'projwfc.x < {0} | tee {1}\n'
-            script += rundos.format(in_dos_filename, out_dos_filename)
-        else:
-            rundos = '{3} -np {0:d} projwfc.x -inp {1} | tee {2}\n'
-            script += rundos.format(np, in_dos_filename, out_dos_filename, 
-                                    self.run_params['mpicmd'])
-
     # We want to copy the wavefunction file back into the CWD
-    if self.string_params['disk_io'] is not 'none':
+    if (self.string_params['disk_io'] is not 'none' 
+        and self.bool_params['wf_collect'] is not True):
         script += '\ncp -r {0}/* .\n'.format(self.run_params['rundir'])
+    
+    if self.string_params['disk_io'] is not 'none':
         script += '\nrm -fr {0}\n'.format(self.run_params['rundir'])
 
     if self.string_params['disk_io'] == 'none':
