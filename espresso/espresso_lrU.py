@@ -368,7 +368,7 @@ def write_pert(self, alphas=(-0.15, -0.07, 0.0, 0.07, 0.15,), index=1, parallel=
         for line in lines:
             if line.split()[0].lower() == '&control':
                 new_file.write(line)
-                new_file.write(" wfcdir = './'\n")
+                # new_file.write(" wfcdir = './'\n")
                 new_file.write(" disk_io = 'none'\n")
                 new_file.write(" outdir = 'alpha_{alpha}/'\n".format(**locals()))
             elif line.split()[0].lower() == '&electrons':
@@ -443,6 +443,7 @@ def run_pert(self, alphas=(-0.15, -0.07, 0, 0.07, 0.15), index=1, test=False):
     if self.run_params['ppn'] == 1:
         for alpha in run_alphas:
             run_script = '''cp -r pwscf.occup pwscf.save alpha_{0}/
+cp -r pwscf.*wfc* alpha_{0}/
 {1} < alpha_{0}/alpha_{0}.in | tee results/alpha_{0}.out
 rm -fr alpha_{0}/pwscf.*
 '''.format(alpha, run_cmd)
@@ -450,6 +451,7 @@ rm -fr alpha_{0}/pwscf.*
     else:
         for alpha in run_alphas:
             run_script = '''cp -r pwscf.occup pwscf.save alpha_{0}/
+cp -r pwscf.*wfc* alpha_{0}/
 {4} -np {1:d} {2} -inp alpha_{0}/alpha_{0}.in -npool {3} | tee results/alpha_{0}.out
 rm -fr alpha_{0}/pwscf.*
 '''.format(alpha, np, run_cmd, self.run_params['pools'], self.run_params['mpicmd'])
