@@ -821,16 +821,18 @@ class Espresso(Calculator):
             if line.lower().startswith('     forces acting'):
                 forces = []
                 j = 2
-                while not lines[i + j].lower().startswith('     total force'):
-                    if lines[i + j].lower().startswith('     atom'):
-                        force_line = lines[i + j].split()
-                        force = (float(force_line[-3]) * (13.6056 * 1.8897),
-                                 float(force_line[-2]) * (13.6056 * 1.8897),
-                                 float(force_line[-1]) * (13.6056 * 1.8897))
-                        forces.append(force)
-                    j += 1
-                return forces
-
+                try: # Sometimes the calculation will stop before these are printed
+                    while not lines[i + j].lower().startswith('     total force'):
+                        if lines[i + j].lower().startswith('     atom'):
+                            force_line = lines[i + j].split()
+                            force = (float(force_line[-3]) * (13.6056 * 1.8897),
+                                     float(force_line[-2]) * (13.6056 * 1.8897),
+                                     float(force_line[-1]) * (13.6056 * 1.8897))
+                            forces.append(force)
+                        j += 1
+                    return forces
+                except(IndexError):
+                    return None                    
             return None
 
         def read_electronic_convergence(line):
