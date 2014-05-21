@@ -305,8 +305,8 @@ class Espresso(Calculator):
         self.old_int_params['nbnd'] = int(nbands * 1.5) # This is to make this backwards compatitble
 
         # Have the default behavior print out tstress and tprnfor because they're important
-        if self.bool_params['tstress'] is not False:
-            self.set(tstress=True)
+        # if self.bool_params['tstress'] is not False: # the stress seems to fail a lot...
+        #     self.set(tstress=True)
         if self.bool_params['tprnfor'] is not False:
             self.set(tprnfor=True)
 
