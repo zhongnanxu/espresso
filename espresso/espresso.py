@@ -283,6 +283,9 @@ class Espresso(Calculator):
         self.old_bool_params = self.bool_params.copy()
         self.old_list_params = self.list_params.copy()
         self.old_input_params = self.input_params.copy()
+
+        # Update the atoms object
+        atoms = calc.get_atoms()
         
         # Finally set all the keys
         self.set(**kwargs)
@@ -293,8 +296,7 @@ class Espresso(Calculator):
         self.int_params['nat'] = len(self.atoms)
         self.int_params['ntyp'] = len(self.unique_set)
         self.int_params['ibrav'] = 0 
-        if atoms is not None:
-            atoms.calc = self            
+        atoms.calc = self    
 
         # Set nbands automatically if not set manually. We want to override the
         # default, which is 1.2 * the number of electrons. We want 1.5 times
