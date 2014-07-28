@@ -285,7 +285,7 @@ class Espresso(Calculator):
         self.old_input_params = self.input_params.copy()
 
         # Update the atoms object
-        atoms = calc.get_atoms()
+        atoms = self.get_atoms()
         
         # Finally set all the keys
         self.set(**kwargs)
@@ -297,14 +297,6 @@ class Espresso(Calculator):
         self.int_params['ntyp'] = len(self.unique_set)
         self.int_params['ibrav'] = 0 
         atoms.calc = self    
-
-        # Set nbands automatically if not set manually. We want to override the
-        # default, which is 1.2 * the number of electrons. We want 1.5 times
-        nbands = 0
-        for atom in self.atoms:
-            nbands += self.PPs[atom.symbol][1]
-        self.int_params['nbnd'] = int(nbands * 1.5)
-        self.old_int_params['nbnd'] = int(nbands * 1.5) # This is to make this backwards compatitble
 
         # Have the default behavior print out tstress and tprnfor because they're important
         # if self.bool_params['tstress'] is not False: # the stress seems to fail a lot...
@@ -431,6 +423,14 @@ class Espresso(Calculator):
             self.atomic_species.append(('{0}'.format(unique_atom[0]),
                                         '{0}'.format(itype),
                                         self.PPs[unique_atom[0]][0]))
+            
+        # Set nbands automatically if not set manually. We want to override the
+        # default, which is 1.2 * the number of electrons. We want 1.5 times
+        nbands = 0
+        for atom in self.atoms:
+            nbands += self.PPs[atom.symbol][1]
+        self.int_params['nbnd'] = int(nbands * 1.5)
+        self.old_int_params['nbnd'] = int(nbands * 1.5) # This is to make this backwards compatitble
 
         return
 
