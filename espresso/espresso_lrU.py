@@ -242,20 +242,15 @@ def calc_Us(self, patoms, alphas=(-0.15, -0.07, 0, 0.07, 0.15), test=False, sc=1
 
 Espresso.calc_Us = calc_Us
 
-def python_calc_single_U(self, patoms, alphas=(-0.15, -0.07, 0, 0.07, 0.15)):
+def python_calc_single_U(self, key, alphas=(-0.15, -0.07, 0, 0.07, 0.15)):
     '''This is a function to calculate the linear response U of a single atom'''
 
-    sort = self.initialize_lrU(patoms)
+    from pycse import regress
+    from uncertainties import ufloat
     calc_name = os.path.basename(self.espressodir)
 
     if not isdir ('Ucalc'):
         os.mkdir('Ucalc')
-
-    keys = sorted(patoms.keys())
-    allatoms = []
-    for key in keys:
-        for index in patoms[key]:
-            allatoms.append(index)
 
     cwd = os.getcwd()
 
@@ -266,9 +261,7 @@ def python_calc_single_U(self, patoms, alphas=(-0.15, -0.07, 0, 0.07, 0.15)):
         assert self.check_calc_complete(filename='results/alpha_{0}.out'.format(alpha))
 
     # First create the matrix for storing occupancies
-    bare = np.zeros([len(allatoms), len(allatoms)])
-    convg = np.zeros([len(allatoms), len(allatoms)])
-        
+    occ_0s, occ_fs = [], []
 
     # Store the initial and final occupations in arrays
     for alpha in alphas:
@@ -285,6 +278,8 @@ def python_calc_single_U(self, patoms, alphas=(-0.15, -0.07, 0, 0.07, 0.15)):
                 calc_finished = True
             # We will first 
             if not line.startswith('atom '):
+                continue
+            if not int(line.split()[1]) == key + 1:
                 continue
             occ = float(line.split()[-1])
             if calc_started == True and calc_finished == False:

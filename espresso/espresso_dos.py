@@ -179,7 +179,7 @@ class EspressoDos(object):
         if spin == True:
             return np.array(self.total_dos_up), np.array(self.total_dos_down)
 
-    def get_site_dos(self, atom, orbital, proj=None, spin=False):
+    def get_site_dos(self, atom, orbital, proj=None, spin=None):
         '''This returns the site projected density of states for
         a specific atom. Here are the options available
         
@@ -193,24 +193,30 @@ class EspressoDos(object):
         proj (string): This is the projection. Below are the available options. 
                        Specifying 'None' just returns the total DOS 
 
-        s orbital: s (same as total)
-        p orbital: px, py, pz
-        d orbital: dz2, dzx, dzy, dx2-y2, dxy
+                       s orbital: s (same as total)
+                       p orbital: px, py, pz
+                       d orbital: dz2, dzx, dzy, dx2-y2, dxy
+        spin can be either +, -, or None
         '''
 
         self.update(atom, orbital)
         
-        if proj == None:
-            spin_up = self.dos_dict[atom][orbital]['tot+']
-            spin_down = self.dos_dict[atom][orbital]['tot-']
-        else:
-            spin_up = self.dos_dict[atom][orbital][proj[:-1]]
-            spin_down = self.dos_dict[atom][orbital][proj[:-1]]
+        if spin == None:
+            if proj == None:
+                spin_up = self.dos_dict[atom][orbital]['tot+']
+                spin_down = self.dos_dict[atom][orbital]['tot-']
+            else:
+                spin_up = self.dos_dict[atom][orbital][proj + '+']
+                spin_down = self.dos_dict[atom][orbital][proj + '-']
 
-        if spin == False:
             return np.array(spin_up) + np.array(spin_down)
+
         else:
-            return np.array(spin_up), np.array(spin_down)
+            if proj == None:
+                return np.array(self.dos_dict[atom][orbital]['tot' + spin])
+            else:
+                return np.array(self.dos_dict[atom][orbital][proj + spin])
+
         
     def get_number_of_states(self, atom, orbital, proj=None, spin=False, limits=None):
         '''Return the number of states in a band. The inputs are the

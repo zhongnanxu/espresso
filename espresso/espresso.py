@@ -283,6 +283,9 @@ class Espresso(Calculator):
         self.old_bool_params = self.bool_params.copy()
         self.old_list_params = self.list_params.copy()
         self.old_input_params = self.input_params.copy()
+
+        # Update the atoms object
+        atoms = self.get_atoms()
         
         # Finally set all the keys
         self.set(**kwargs)
@@ -293,20 +296,11 @@ class Espresso(Calculator):
         self.int_params['nat'] = len(self.atoms)
         self.int_params['ntyp'] = len(self.unique_set)
         self.int_params['ibrav'] = 0 
-        if atoms is not None:
-            atoms.calc = self            
-
-        # Set nbands automatically if not set manually. We want to override the
-        # default, which is 1.2 * the number of electrons. We want 1.5 times
-        nbands = 0
-        for atom in self.atoms:
-            nbands += self.PPs[atom.symbol][1]
-        self.int_params['nbnd'] = int(nbands * 1.5)
-        self.old_int_params['nbnd'] = int(nbands * 1.5) # This is to make this backwards compatitble
+        atoms.calc = self    
 
         # Have the default behavior print out tstress and tprnfor because they're important
-        if self.bool_params['tstress'] is not False:
-            self.set(tstress=True)
+        # if self.bool_params['tstress'] is not False: # the stress seems to fail a lot...
+        #     self.set(tstress=True)
         if self.bool_params['tprnfor'] is not False:
             self.set(tprnfor=True)
 
@@ -429,6 +423,14 @@ class Espresso(Calculator):
             self.atomic_species.append(('{0}'.format(unique_atom[0]),
                                         '{0}'.format(itype),
                                         self.PPs[unique_atom[0]][0]))
+            
+        # Set nbands automatically if not set manually. We want to override the
+        # default, which is 1.2 * the number of electrons. We want 1.5 times
+        nbands = 0
+        for atom in self.atoms:
+            nbands += self.PPs[atom.symbol][1]
+        self.int_params['nbnd'] = int(nbands * 1.5)
+        self.old_int_params['nbnd'] = int(nbands * 1.5) # This is to make this backwards compatitble
 
         return
 
@@ -821,16 +823,18 @@ class Espresso(Calculator):
             if line.lower().startswith('     forces acting'):
                 forces = []
                 j = 2
-                while not lines[i + j].lower().startswith('     total force'):
-                    if lines[i + j].lower().startswith('     atom'):
-                        force_line = lines[i + j].split()
-                        force = (float(force_line[-3]) * (13.6056 * 1.8897),
-                                 float(force_line[-2]) * (13.6056 * 1.8897),
-                                 float(force_line[-1]) * (13.6056 * 1.8897))
-                        forces.append(force)
-                    j += 1
-                return forces
-
+                try: # Sometimes the calculation will stop before these are printed
+                    while not lines[i + j].lower().startswith('     total force'):
+                        if lines[i + j].lower().startswith('     atom'):
+                            force_line = lines[i + j].split()
+                            force = (float(force_line[-3]) * (13.6056 * 1.8897),
+                                     float(force_line[-2]) * (13.6056 * 1.8897),
+                                     float(force_line[-1]) * (13.6056 * 1.8897))
+                            forces.append(force)
+                        j += 1
+                    return forces
+                except(IndexError):
+                    return None                    
             return None
 
         def read_electronic_convergence(line):
