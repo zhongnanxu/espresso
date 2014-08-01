@@ -191,50 +191,48 @@ def run_series(name, calcs, walltime='50:00:00', ppn=1, nodes=1, processor=None,
         
     # The beginning of the code will be different depending on whether we need a restart
     if len(done_dirs) == 0:
-        if (ppn == 1 and nodes == 1):            
-            script += '''cd {0}
-{1} < {2}.in | tee {2}.out
-\n'''.format(dirs[0], executables[0], names[0])
+        script += 'cd {0}\n'.format(dirs[0])
+        script += "sed -i 's@${PBS_JOBID}@'${PBS_JOBID}'@' " + '{0}.in\n'.format(names[0])
+            
+        if (ppn == 1 and nodes == 1):
+            script += '{0} < {1}.in | tee {1}.out\n\n'.format(executables[0], names[0])
         else:
-            script += '''cd {0}
-{5} -np {1} {2} -inp {3}.in -npool {4} | tee {3}.out
-\n'''.format(dirs[0], ppn, executables[0], names[0], pools, calc.run_params['mpicmd'])
+            script += '''{4} -np {0} {1} -inp {2}.in -npool {3} | tee {2}.out
+\n'''.format(ppn, executables[0], names[0], pools, calc.run_params['mpicmd'])
 
     else:
+        script += 'cd {0}\n'.format(done_dirs[-1])
+        script += '{0} pwscf.atwfc* pwscf.satwfc1* pwscf.wfc* pwscf.occup pwscf.igk* pwscf.save '.format(move) 
+        script += '/scratch/${PBS_JOBID}\n'
+        script += '''{0}
+cd {1}
+'''.format(update_atoms.format(dirs[0]), dirs[0])
+        script += "sed -i 's@${PBS_JOBID}@'${PBS_JOBID}'@' " + '{0}.in\n'.format(names[0])
+
         if (ppn == 1 and nodes == 1):
-            script += '''cd {0}
-{1} pwscf.atwfc* pwscf.satwfc1* pwscf.wfc* pwscf.occup pwscf.igk* pwscf.save {2}
-{5}
-cd {2}
-{3} < {4}.in | tee {4}.out
-\n'''.format(done_dirs[-1], move, dirs[0], executables[0], 
-             names[0], update_atoms.format(dirs[0]))
+            script += '{0} < {1}.in | tee {1}.out\n'.format(executables[0], names[0])
         else:
-            script += '''cd {0}
-{1} pwscf.atwfc* pwscf.satwfc1* pwscf.wfc* pwscf.occup pwscf.igk* pwscf.save {2}
-{7}
-cd {2}
-{8} -np {3} {4} -inp {5}.in -npool {6} | tee {5}.out
-\n'''.format(done_dirs[-1], move, dirs[0], np, executables[0], 
-             names[0], pools, update_atoms.format(dirs[0]), calc.run_params['mpicmd'])
+            script += '''{0} -np {1} {2} -inp {3}.in -npool {4} | tee {3}.out
+\n'''.format(calc.run_params['mpicmd'], np, executables[0], names[0], move, pools, dirs[0])
             
     # Now do the rest of the calculations
-    if (ppn == 1 and nodes == 1):                    
-        for d, n, r in zip(dirs[1:], names[1:], executables[1:]):
-            script +='''{0} pwscf.atwfc* pwscf.satwfc1* pwscf.wfc* pwscf.occup pwscf.igk* pwscf.save {1}
-{4}
+    for d, n, r in zip(dirs[1:], names[1:], executables[1:]):
+        script += 'cd /scratch/${PBS_JOBID}\n'
+        script += '''{0} pwscf.atwfc* pwscf.satwfc1* pwscf.wfc* pwscf.occup pwscf.igk* pwscf.save {1}
+{2}
 cd {1}
-{2} < {3}.in | tee {3}.out
-\n'''.format(move, d, r, n, update_atoms.format(d))
-
-    else:
-        for d, n, r in zip(dirs[1:], names[1:], executables[1:]):
-            script +='''{0} pwscf.atwfc* pwscf.satwfc1* pwscf.wfc* pwscf.occup pwscf.igk* pwscf.save {1}
-{6}
-cd {1}
-{7} -np {2} {3} -inp {4}.in -npool {5} | tee {4}.out
-\n'''.format(move, d, np, r, n, pools, update_atoms.format(d), calc.run_params['mpicmd'])
+'''.format(move, d, update_atoms.format(d))
+        script  += "sed -i 's@${PBS_JOBID}@'${PBS_JOBID}'@' " + '{0}.in\n'.format(n)
         
+        if (ppn == 1 and nodes == 1):
+            script += '{0} < {1}.in | tee {1}.out\n\n'.format(r, n)
+        else:
+            script += '''{0} -np {1} {2} -inp {3}.in -npool {4} | tee {3}.out
+\n'''.format(calc.run_params['mpicmd'], np, r, n, pools)
+            
+    script += 'cd /scratch/${PBS_JOBID}\n'
+    script += '{0} pwscf.atwfc* pwscf.satwfc1* pwscf.wfc* pwscf.occup pwscf.igk* pwscf.save {1}'.format(move, dirs[-1])
+
     if test == False:
         run_file = open(filename + '.run', 'w')
         run_file.write(script)
