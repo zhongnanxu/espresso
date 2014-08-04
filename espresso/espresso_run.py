@@ -190,48 +190,54 @@ def run_series(name, calcs, walltime='50:00:00', ppn=1, nodes=1, processor=None,
     np = nodes * ppn
         
     # The beginning of the code will be different depending on whether we need a restart
-    if len(done_dirs) == 0:
-        script += 'cd {0}\n'.format(dirs[0])
-        script += "sed -i 's@${PBS_JOBID}@'${PBS_JOBID}'@' " + '{0}.in\n'.format(names[0])
-            
-        if (ppn == 1 and nodes == 1):
-            script += '{0} < {1}.in | tee {1}.out\n\n'.format(executables[0], names[0])
-        else:
-            script += '''{4} -np {0} {1} -inp {2}.in -npool {3} | tee {2}.out
-\n'''.format(ppn, executables[0], names[0], pools, calc.run_params['mpicmd'])
-
-    else:
+    if len(done_dirs) != 0:
+        # Copy the previous converged WFC files into /scratch/${PBS_JOBID} directory
         script += 'cd {0}\n'.format(done_dirs[-1])
-        script += '{0} pwscf.atwfc* pwscf.satwfc1* pwscf.wfc* pwscf.occup pwscf.igk* pwscf.save '.format(move) 
-        script += '/scratch/${PBS_JOBID}\n'
-        script += '''{0}
-cd {1}
-'''.format(update_atoms.format(dirs[0]), dirs[0])
-        script += "sed -i 's@${PBS_JOBID}@'${PBS_JOBID}'@' " + '{0}.in\n'.format(names[0])
+        
+        # Since we haven't run a script yet, we need to make the directory
+        script += 'mkdir /scratch/${PBS_JOBID}\n'
 
-        if (ppn == 1 and nodes == 1):
-            script += '{0} < {1}.in | tee {1}.out\n'.format(executables[0], names[0])
-        else:
-            script += '''{0} -np {1} {2} -inp {3}.in -npool {4} | tee {3}.out
-\n'''.format(calc.run_params['mpicmd'], np, executables[0], names[0], move, pools, dirs[0])
+        s = '{0} pwscf.atwfc* pwscf.satwfc1* pwscf.wfc* pwscf.occup pwscf.igk* pwscf.save '
+        script += s.format(move)
+        script += '/scratch/${PBS_JOBID}\n'
+
+    # Change into directory and edit input file to reflect correct /scratch dir
+    script += 'cd {0}\n'.format(dirs[0])
+    if len(done_dirs) != 0:
+        script += '{0}\n'.format(update_atoms.format(dirs[0]))
+    script += "sed -i 's@${PBS_JOBID}@'${PBS_JOBID}'@' " + '{0}.in\n'.format(names[0])
+
+    # Run the job
+    if (ppn == 1 and nodes == 1):
+        script += '{0} < {1}.in | tee {1}.out\n\n'.format(executables[0], names[0])
+    else:
+        s = '{0} -np {1} {2} -inp {3}.in -npool {4} | tee {3}.out \n\n'
+        script += s.format(calc.run_params['mpicmd'], np, executables[0], names[0], pools)
+
+    # Copy completed job wavefunction from /scratch/${PBS_JOBID} back into working directory
+    script += 'cd /scratch/${PBS_JOBID}\n'
+    s = '{0} pwscf.atwfc* pwscf.satwfc1* pwscf.wfc* pwscf.occup pwscf.igk* pwscf.save {1}\n'
+    script += s.format(move, dirs[0])
+    script += 'cd {0}\n'.format(dirs[0])
             
     # Now do the rest of the calculations
     for d, n, r in zip(dirs[1:], names[1:], executables[1:]):
-        script += 'cd /scratch/${PBS_JOBID}\n'
-        script += '''{0} pwscf.atwfc* pwscf.satwfc1* pwscf.wfc* pwscf.occup pwscf.igk* pwscf.save {1}
-{2}
-cd {1}
-'''.format(move, d, update_atoms.format(d))
+        # Change into next directory and edit input file to reflect correct scratch
+        script += '{0}\n'.format(update_atoms.format(d))
+        script += 'cd {0}\n'.format(d)
         script  += "sed -i 's@${PBS_JOBID}@'${PBS_JOBID}'@' " + '{0}.in\n'.format(n)
-        
+
+        # Run the job
         if (ppn == 1 and nodes == 1):
             script += '{0} < {1}.in | tee {1}.out\n\n'.format(r, n)
         else:
-            script += '''{0} -np {1} {2} -inp {3}.in -npool {4} | tee {3}.out
-\n'''.format(calc.run_params['mpicmd'], np, r, n, pools)
-            
-    script += 'cd /scratch/${PBS_JOBID}\n'
-    script += '{0} pwscf.atwfc* pwscf.satwfc1* pwscf.wfc* pwscf.occup pwscf.igk* pwscf.save {1}'.format(move, dirs[-1])
+            s = '{0} -np {1} {2} -inp {3}.in -npool {4} | tee {3}.out\n\n'
+            script += s.format(calc.run_params['mpicmd'], np, r, n, pools)
+
+        # Copy the wavefunction files back into home directory
+        script += 'cd /scratch/${PBS_JOBID}\n'
+        s = '{0} pwscf.atwfc* pwscf.satwfc1* pwscf.wfc* pwscf.occup pwscf.igk* pwscf.save {1}\n'
+        script += s.format(move, d)
 
     if test == False:
         run_file = open(filename + '.run', 'w')
