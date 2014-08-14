@@ -4,9 +4,12 @@ running calculations, this file contains functions for organizing, reading, and 
 """
 
 import commands
+import shutil
+import fnmatch
 import os
 import sys
 import re
+import glob
 from string import digits, ascii_letters
 from os.path import join, isfile, islink, isdir
 from collections import Iterable
@@ -165,7 +168,7 @@ class Espresso(Calculator):
 
         self.atoms = atoms
         self.original_atoms = atoms
-        self.old_filename = os.path.basename(self.espressodir) # For old version of espresso that used this filename
+        self.old_filename = os.path.basename(self.espressodir) # For backwards compatability
         self.filename = 'pwscf'
         self.name = 'QuantumEspresso'        
         self.real_params = {}
@@ -304,12 +307,11 @@ class Espresso(Calculator):
         if self.bool_params['tprnfor'] is not False:
             self.set(tprnfor=True)
 
-        # If disk_io is not 'none', we're writing large wavefunction files. Write these files on
-        # the local cluster
-        if (self.string_params['disk_io'] is not 'none' 
-            and (self.string_params['wfcdir'] is None
-                 or self.string_params['wfcdir'].startswith('/scratch/'))):
-            self.string_params['wfcdir'] = ESPRESSORC['rundir']
+        # ALWAYS write temp files to the scratch directory unless outdir 
+        # is specified and not in /scratch/
+        if (self.string_params['outdir'] == None or 
+            self.string_params['outdir'].startswith('/scratch/')):
+            self.string_params['outdir'] = self.run_params['rundir']
 
         return
 
@@ -431,7 +433,7 @@ class Espresso(Calculator):
         for atom in self.atoms:
             nbands += self.PPs[atom.symbol][1]
         self.int_params['nbnd'] = int(nbands * 1.5)
-        self.old_int_params['nbnd'] = int(nbands * 1.5) # This is to make this backwards compatitble
+        self.old_int_params['nbnd'] = int(nbands * 1.5) # Backwards compatability
 
         return
 
@@ -445,9 +447,6 @@ class Espresso(Calculator):
             newdirpath = newdir
         else:
             newdirpath = os.path.join(self.cwd, newdir)
-
-        import shutil
-        import fnmatch
         
         if not os.path.isdir(newdirpath):
             os.makedirs(newdirpath)
@@ -455,13 +454,13 @@ class Espresso(Calculator):
         for ef in os.listdir('.'):
             if force == False:
                 if (not os.path.exists(os.path.join(newdirpath, ef))
-                    and fnmatch.fnmatch(ef, 'pwscf.*')):
+                    and fnmatch.fnmatch(ef, self.filename + '.*')):
                     if os.path.isfile(ef):
                         shutil.copy(ef, newdirpath)
                     elif os.path.isdir(ef):
                         shutil.copytree(ef, os.path.join(newdirpath, ef))
             else:
-                if fnmatch.fnmatch(ef, 'pwscf.*'):
+                if fnmatch.fnmatch(ef, self.filename + '.*'):
                     if os.path.isfile(ef):
                         shutil.copy(ef, newdirpath)
                     elif os.path.isdir(ef):
@@ -762,7 +761,8 @@ class Espresso(Calculator):
 
             # Now read the KPOINTS card into the input_params
             elif line.lower().startswith('k_points'):
-                self.input_params['kpts'] = np.array([int(lines[i + 1].split()[j]) for j in range(3)])
+                kpts =  np.array([int(lines[i + 1].split()[j]) for j in range(3)])
+                self.input_params['kpts'] = kpts
                 if int(lines[i + 1].split()[3]) == 0:
                     self.input_params['offset'] == False
                 else:
@@ -1078,6 +1078,18 @@ class Espresso(Calculator):
                 if line.lower().startswith('     convergence has been achieved'):
                     done = True
             return done
+
+    def clean(self):
+        '''Cleans out all of the files in the directory related to calculations'''
+        files = (glob.glob(self.old_filename + '.*') +
+                 glob.glob(self.filename + '.*'))
+        for f in files:
+            if isdir(f):
+                shutil.rmtree(f)
+            else:
+                os.remove(f)
+
+        return
 
 
 # Import the rest of the functions

@@ -322,7 +322,7 @@ def write_pert(self, alphas=(-0.15, -0.07, 0.0, 0.07, 0.15,), index=1, parallel=
         if line.lower().startswith('     ethr'):
             ethr = float(line.split()[2].translate(None, ','))
 
-    # First make the perturbations results folder
+    # Make the perturbations results folder
     if not os.path.isdir('results'):
         os.makedirs('results')
 
@@ -333,7 +333,6 @@ def write_pert(self, alphas=(-0.15, -0.07, 0.0, 0.07, 0.15,), index=1, parallel=
         if not self.check_calc_complete(filename=fname):
             run_alphas.append(alpha)
 
-
     # If all of them are complete just return
     if len(run_alphas) == 0:
         return None
@@ -343,7 +342,8 @@ def write_pert(self, alphas=(-0.15, -0.07, 0.0, 0.07, 0.15,), index=1, parallel=
     for alpha in run_alphas:
         orig_file = open(self.filename + '.in', 'r')
         lines = orig_file.readlines()
-        # Also delete old files that were left from previous calculations
+
+        # Delete old files that were left from previous calculations
         try:
             for ef in os.listdir('alpha_{alpha}'.format(**locals())):
                 if (fnmatch.fnmatch(ef, 'pwscf.*')
@@ -354,6 +354,7 @@ def write_pert(self, alphas=(-0.15, -0.07, 0.0, 0.07, 0.15,), index=1, parallel=
                     shutil.rmtree('alpha_{alpha}/{ef}'.format(**locals()))
         except:
             pass
+            
         if parallel == False:
             if not os.path.isdir('alpha_' + str(alpha)):
                 os.mkdir('alpha_' + str(alpha))
@@ -363,9 +364,9 @@ def write_pert(self, alphas=(-0.15, -0.07, 0.0, 0.07, 0.15,), index=1, parallel=
         for line in lines:
             if line.split()[0].lower() == '&control':
                 new_file.write(line)
-                # new_file.write(" wfcdir = './'\n")
                 new_file.write(" disk_io = 'none'\n")
-                new_file.write(" outdir = 'alpha_{alpha}/'\n".format(**locals()))
+                new_file.write(" outdir = '{0}'\n".format(self.string_params['outdir']))
+                new_file.write(" wfcdir = './'\n")
             elif line.split()[0].lower() == '&electrons':
                 new_file.write(line)
                 new_file.write(" startingwfc = 'file'\n")
@@ -373,11 +374,10 @@ def write_pert(self, alphas=(-0.15, -0.07, 0.0, 0.07, 0.15,), index=1, parallel=
                 new_file.write(" diago_thr_init = {ethr:.8g}\n".format(**locals()))
             elif line.split()[0].lower() == "hubbard_alpha({0})".format(int(index)):
                 new_file.write(" Hubbard_alpha({0}) = {1}\n".format(int(index),
-                                                                   alpha))
-            elif line.split()[0].lower() == 'wfcdir':
-                continue
-                # new_file.write(" wfcdir = './'\n")
-            elif line.split()[0].lower() == 'disk_io':
+                                                                    alpha))
+            elif (line.split()[0].lower() == 'wfcdir' 
+                  or line.split()[0].lower() == 'outdir'
+                  or line.split()[0].lower() == 'disk_io'):
                 continue
             else:
                 new_file.write(line)
@@ -432,27 +432,27 @@ def run_pert(self, alphas=(-0.15, -0.07, 0, 0.07, 0.15), index=1, test=False):
 
     # Now add the parts of the script for running calculations
     script += '\ncd $PBS_O_WORKDIR\n'
+    
+    # we need to make the directory first
+    script += 'mkdir {0}\n'.format(self.string_params['outdir'])
 
     run_cmd = self.run_params['executable']
 
-    if self.run_params['ppn'] == 1:
-        for alpha in run_alphas:
-            run_script = '''cp -r pwscf.occup pwscf.save alpha_{0}/
-cp -r pwscf.*wfc* alpha_{0}/
-{1} < alpha_{0}/alpha_{0}.in | tee results/alpha_{0}.out
-rm -fr alpha_{0}/pwscf.*
-'''.format(alpha, run_cmd)
-            script += run_script
-    else:
-        for alpha in run_alphas:
-            run_script = '''cp -r pwscf.occup pwscf.save alpha_{0}/
-cp -r pwscf.*wfc* alpha_{0}/
-{4} -np {1:d} {2} -inp alpha_{0}/alpha_{0}.in -npool {3} | tee results/alpha_{0}.out
-rm -fr alpha_{0}/pwscf.*
-'''.format(alpha, np, run_cmd, self.run_params['pools'], self.run_params['mpicmd'])
+    for alpha in run_alphas:
+        script += '\ncp -r pwscf.occup pwscf.save {0}\n'.format(self.string_params['outdir'])
+        script += ("sed -i 's@${PBS_JOBID}@'${PBS_JOBID}'@' " 
+                   + 'alpha_{0}/alpha_{0}.in\n'.format(alpha))
+        if self.run_params['ppn'] == 1:
+            s = '{1} < alpha_{0}/alpha_{0}.in | tee results/alpha_{0}.out\n'
+            script += s.format(alpha, run_cmd)
+        else:
+            s = '{4} -np {1:d} {2} -inp alpha_{0}/alpha_{0}.in -npool {3} | tee results/alpha_{0}.out\n'
+            script += s.format(alpha, np, run_cmd, self.run_params['pools'], 
+                               self.run_params['mpicmd'])
 
-            script += run_script
+        script += 'mv {1}/* alpha_{0}/\n'.format(alpha, self.string_params['outdir'])
 
+    script += 'rm -fr {0}\n'.format(self.string_params['outdir'])
     script += '# end\n'
     if test == True:
         print script

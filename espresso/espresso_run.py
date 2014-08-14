@@ -51,9 +51,8 @@ def run(self, series=False, jobid='jobid'):
 
     # If disk_io is not 'none', we need to edit the input file so the wfcdir
     # variable correctly points to the local folder where the wfc are found
-    if self.string_params['disk_io'] is not 'none':
+    if self.string_params['outdir'].startswith('/scratch/'):
         script += "sed -i 's@${PBS_JOBID}@'${PBS_JOBID}'@' " + '{0}\n'.format(in_file)
-        # script += 'mkdir {0}\n'.format(self.run_params['rundir'])
 
     if np == 1:
         runscript = '{0} < {1} | tee {2}\n'
@@ -65,12 +64,9 @@ def run(self, series=False, jobid='jobid'):
                                    self.run_params['mpicmd'])                                   
 
     # We want to copy the wavefunction file back into the CWD
-    if (self.string_params['disk_io'] is not 'none' 
-        and self.bool_params['wf_collect'] is not True):
-        script += '\ncp -r {0}/* .\n'.format(self.run_params['rundir'])
-    
-    if self.string_params['disk_io'] is not 'none':
-        script += '\nrm -fr {0}\n'.format(self.run_params['rundir'])
+    if self.string_params['outdir'].startswith('/scratch/'):
+        script += '\nmv {0}/* .\n'.format(self.string_params['outdir'])
+        script += 'rm -fr {0}\n'.format(self.string_params['outdir'])
 
     if self.string_params['disk_io'] == 'none':
         script += 'eclean\n# end'
@@ -195,11 +191,11 @@ def run_series(name, calcs, walltime='50:00:00', ppn=1, nodes=1, processor=None,
         script += 'cd {0}\n'.format(done_dirs[-1])
         
         # Since we haven't run a script yet, we need to make the directory
-        script += 'mkdir /scratch/${PBS_JOBID}\n'
+        script += 'mkdir {0}\n'.format(self.string_params['outdir'])
 
         s = '{0} pwscf.atwfc* pwscf.satwfc1* pwscf.wfc* pwscf.occup pwscf.igk* pwscf.save '
         script += s.format(move)
-        script += '/scratch/${PBS_JOBID}\n'
+        script += '{0}\n'.format(self.string_params['outdir'])
 
     # Change into directory and edit input file to reflect correct /scratch dir
     script += 'cd {0}\n'.format(dirs[0])
@@ -215,7 +211,7 @@ def run_series(name, calcs, walltime='50:00:00', ppn=1, nodes=1, processor=None,
         script += s.format(calc.run_params['mpicmd'], np, executables[0], names[0], pools)
 
     # Copy completed job wavefunction from /scratch/${PBS_JOBID} back into working directory
-    script += 'cd /scratch/${PBS_JOBID}\n'
+    script += 'cd {0}\n'.format(self.string_params['outdir'])
     s = '{0} pwscf.atwfc* pwscf.satwfc1* pwscf.wfc* pwscf.occup pwscf.igk* pwscf.save {1}\n'
     script += s.format(move, dirs[0])
     script += 'cd {0}\n'.format(dirs[0])
@@ -235,7 +231,7 @@ def run_series(name, calcs, walltime='50:00:00', ppn=1, nodes=1, processor=None,
             script += s.format(calc.run_params['mpicmd'], np, r, n, pools)
 
         # Copy the wavefunction files back into home directory
-        script += 'cd /scratch/${PBS_JOBID}\n'
+        script += 'cd {0}\n'.format(self.string_params['outdir'])
         s = '{0} pwscf.atwfc* pwscf.satwfc1* pwscf.wfc* pwscf.occup pwscf.igk* pwscf.save {1}\n'
         script += s.format(move, d)
 
