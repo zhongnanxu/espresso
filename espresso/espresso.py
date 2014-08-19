@@ -170,7 +170,8 @@ class Espresso(Calculator):
         self.original_atoms = atoms
         self.old_filename = os.path.basename(self.espressodir) # For backwards compatability
         self.filename = 'pwscf'
-        self.name = 'QuantumEspresso'        
+        self.name = 'QuantumEspresso'
+        self.cputime = 0
         self.real_params = {}
         self.string_params = {}
         self.int_params = {}
@@ -809,10 +810,17 @@ class Espresso(Calculator):
                 return energy_free * 13.605698066 # Rybergs to eV
             return None
 
+        def read_magnetic_moment(line):
+            if line.lower().startswith('     total magnetization'):
+                tot_magmom = float(line.split()[-3])
+                return tot_magmom
+            return None
+
         def read_hubbard_energy(line):
             if line.lower().startswith('     hubbard energy'):
                 energy_hubbard = float(line.split()[-2])
                 return energy_hubbard * 13.605698066 # Rybergs to eV
+            return None
 
         def read_total_force(line):
             if line.lower().startswith('     total force'):
@@ -896,6 +904,12 @@ class Espresso(Calculator):
                 return steps
             return None
 
+        def read_cputime(i, line):
+            if line.lower().startswith('     total cpu'):
+                cputime = line.split()[-2]
+                return cputime
+            return None
+
         def read_walltime(i, line):
             if line.lower().startswith('     pwscf'):
                 walltime = line.split()[-3] + line.split()[-2]
@@ -927,6 +941,7 @@ class Espresso(Calculator):
         self.electronic_converged = True
         self.calc_finished = False
         self.all_energies, self.all_forces, self.all_cells, self.all_pos = [], [], [], []
+        self.all_tot_magmoms = []
         self.energy_hubbard = 0
         self.all_cells.append(self.atoms.get_cell())
         self.all_pos.append(self.atoms.get_positions())
@@ -936,6 +951,11 @@ class Espresso(Calculator):
             if not energy_free == None:
                 self.all_energies.append(energy_free)
                 self.energy_free = energy_free
+
+            tot_magmom = read_magnetic_moment(line)
+            if not tot_magmom == None:
+                self.all_tot_magmoms.append(tot_magmom)
+                self.tot_magmom = tot_magmom
 
             energy_hubbard = read_hubbard_energy(line)
             if not energy_hubbard == None:
@@ -980,6 +1000,10 @@ class Espresso(Calculator):
             walltime = read_walltime(i, line)
             if not walltime == None:
                 self.walltime = walltime
+
+            cputime = read_cputime(i, line)
+            if not walltime == None:
+                self.cputime = cputime
 
             diago_thr_init = read_diago_thr_init(line)
             if not diago_thr_init == None:
@@ -1028,6 +1052,11 @@ class Espresso(Calculator):
         self.update(force=force)
         return self.energy_free
 
+    def get_magnetic_moment(self, atoms=None):
+        if atoms == None:
+            atoms = self.get_atoms()
+        return self.tot_magmom
+
     def get_hubbard_energy(self, atoms=None):
         if atoms == None:
             atoms = self.get_atoms()
@@ -1039,6 +1068,9 @@ class Espresso(Calculator):
             atoms = self.get_atoms()
         self.update()
         return self.forces
+
+    def get_cputime(self):
+        return self.cputime
 
     def get_fermi_level(self, atoms=None):
         if atoms == None:
