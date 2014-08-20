@@ -3,6 +3,7 @@
 """
 
 ESPRESSORC = {'executable':'/home-research/zhongnanxu/opt/espresso-5.0.2-ifort-internal-lapack/bin/pw.x',
-              'PPpath': '/home-research/zhongnanxu/psuedopotentials/gbrv_espresso_pseudo',
+              'PPpath': '/home-research/zhongnanxu/pseudopotentials/gbrv_espresso_pseudo',
+              'qsys': 'pbs',
               'mpicmd': 'mpirun',
               'rundir': '/scratch/${PBS_JOBID}'}  # use ./ as default

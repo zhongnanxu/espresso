@@ -204,6 +204,7 @@ class Espresso(Calculator):
                            'jobname': None,
                            'queue': None,
                            'restart': False,
+			   'qsys': ESPRESSORC['qsys'],
 			   'mpicmd': ESPRESSORC['mpicmd'],
 			   'rundir': ESPRESSORC['rundir']}
 
@@ -342,16 +343,20 @@ class Espresso(Calculator):
             return False
         else:
             # get the jobid
-            jobid = open(jobid).readline().strip()
+            jobid = open(jobid).readline().split()[-1]
 
-            # see if jobid is in queue
-            jobids_in_queue = commands.getoutput('qselect').split('\n')
+            # Behavior will depend on whether we are in the slurm or pbs environment
+            if self.run_params['qsys'] == 'pbs':
+                jobids_in_queue = commands.getoutput('qselect').split('\n')
+            else:
+                jobids_in_queue = commands.getoutput('squeue -h -o %A').split('\n')
+
             if jobid in jobids_in_queue:
                 # get details on specific jobid
                 status, output = commands.getstatusoutput('qstat %s' % jobid)
                 if status == 0:
                     lines = output.split('\n')
-                    fields = lines[2].split()
+                    fields = lines[-1].split()
                     job_status = fields[4]
                     if job_status == 'C':
                         return False
@@ -846,6 +851,12 @@ class Espresso(Calculator):
                     return None                    
             return None
 
+        def read_pressure(line):
+            if line.lower().startswith('          total   stress'):
+                p = float(line.split()[-1]) * 1e8 * 6.241506363e18 / (1e10) ** 3
+                return p
+            return None
+
         def read_electronic_convergence(line):
             if line.lower().startswith('     convergence not achieved'):
                 return False
@@ -942,7 +953,7 @@ class Espresso(Calculator):
         self.calc_finished = False
         self.all_energies, self.all_forces, self.all_cells, self.all_pos = [], [], [], []
         self.all_tot_magmoms = []
-        self.energy_hubbard = 0
+        self.energy_hubbard = 0        
         self.all_cells.append(self.atoms.get_cell())
         self.all_pos.append(self.atoms.get_positions())
         self.steps = []
@@ -969,6 +980,10 @@ class Espresso(Calculator):
             if not forces == None:
                 self.all_forces.append(forces)
                 self.forces = forces
+
+            pressure = read_pressure(line)
+            if not pressure == None:
+                self.pressure = pressure
 
             converged = read_convergence(line)
             if not converged == None:
@@ -1068,6 +1083,11 @@ class Espresso(Calculator):
             atoms = self.get_atoms()
         self.update()
         return self.forces
+
+    def get_pressure(self, atoms=None):
+        if atoms == None:
+            atoms = self.get_atoms()
+        return self.pressure
 
     def get_cputime(self):
         return self.cputime

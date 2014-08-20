@@ -407,31 +407,69 @@ def run_pert(self, alphas=(-0.15, -0.07, 0, 0.07, 0.15), index=1, test=False):
     run_file_name = self.filename + '.pert.run'
     np = self.run_params['nodes'] * self.run_params['ppn']
     
+    rundir =  self.run_params['rundir']
+    mpicmd =  self.run_params['mpicmd']
+
     # Start the run script
-    script = '''#!/bin/bash
+    if self.run_params['qsys'] == 'pbs':
+        qtype='PBS'
+        npflag='-np'
+        subcmd='qsub'
+        subdir='$PBS_O_WORKDIR'
+        script = '''#!/bin/bash
 #PBS -l walltime={0}
 #PBS -j oe
 #PBS -N {1}
+'''.format(self.run_params['walltime'], self.run_params['jobname'])
+    else:
+        qtype='SLURM'
+        npflag='-n'
+        subcmd='sbatch'
+        subdir='$SLURM_SUBMIT_DIR'
+        script = '''#!/bin/bash
+#SBATCH --time={0}
+#SBATCH --job-name={1}
 '''.format(self.run_params['walltime'], self.run_params['jobname'])
 
     # Now add pieces to the script depending on whether we need to
     # pick the processor or the memory
     if self.run_params['processor'] == None:
-        script += '#PBS -l nodes={0:d}:ppn={1:d}\n'.format(self.run_params['nodes'],
-                                                           self.run_params['ppn'])
+        if self.run_params['qsys'] == 'pbs':
+            s = '#PBS -l nodes={0:d}:ppn={1:d}\n'
+            script += s.format(self.run_params['nodes'],
+                               self.run_params['ppn'])
+        else:
+            s = '#SBATCH --nodes={0:d} --ntasks-per-node={1:d}\n'
+            script += s.format(self.run_params['nodes'], 
+                               self.run_params['ppn'])
     else:
-        script += '#PBS -l nodes={0:d}:ppn={1:d}:{2}\n'.format(self.run_params['nodes'],
-                                                               self.run_params['ppn'],
-                                                               self.run_params['processor'])
+        if self.run_params['qsys'] == 'pbs':
+            s = '#PBS -l nodes={0:d}:ppn={1:d}:{2}\n'
+            script += s.format(self.run_params['nodes'],
+                               self.run_params['ppn'],
+                               self.run_params['processor'])
+        else:
+            s = '#SBATCH --nodes={0:d} --ntasks-per-node={1:d} --nodelist={2}\n'
+            script += s.format(self.run_params['nodes'],
+                               self.run_params['ppn'],
+                               self.run_params['processor'])
         
     if self.run_params['mem'] != None:
-        script += '#PBS -l mem={0}\n'.format(self.run_params['mem'])
+        if self.run_params['qsys'] == 'pbs':
+            s = '#PBS -l mem={0}\n'
+            script += s.format(self.run_params['mem'])
+        else:
+            s = '#SBATCH --mem-per-cpu={0}\n'
+            script += s.format(1024*int(self.run_params['mem'].lower().split('gb')[0]))
 
     if self.run_params['queue'] != None:
-        script += '#PBS -q {0}\n'.format(self.run_params['queue'])
+        if self.run_params['qsys'] == 'pbs':
+            script += '#PBS -q {0}\n'.format(self.run_params['queue'])
+        else:
+            script += '#SBATCH -p {0}\n'.format(self.run_params['queue'])
 
     # Now add the parts of the script for running calculations
-    script += '\ncd $PBS_O_WORKDIR\n'
+    script += '''\ncd {0}\n'''.format(subdir)
     
     # we need to make the directory first
     script += 'mkdir {0}\n'.format(self.string_params['outdir'])
@@ -440,15 +478,15 @@ def run_pert(self, alphas=(-0.15, -0.07, 0, 0.07, 0.15), index=1, test=False):
 
     for alpha in run_alphas:
         script += '\ncp -r pwscf.occup pwscf.save {0}\n'.format(self.string_params['outdir'])
-        script += ("sed -i 's@${PBS_JOBID}@'${PBS_JOBID}'@' " 
+        script += ("sed -i 's@${"+qtype+"_JOBID}@'${"+qtype+"_JOBID}'@' " 
                    + 'alpha_{0}/alpha_{0}.in\n'.format(alpha))
         if self.run_params['ppn'] == 1:
             s = '{1} < alpha_{0}/alpha_{0}.in | tee results/alpha_{0}.out\n'
             script += s.format(alpha, run_cmd)
         else:
-            s = '{4} -np {1:d} {2} -inp alpha_{0}/alpha_{0}.in -npool {3} | tee results/alpha_{0}.out\n'
+            s = '{4} {5} {1:d} {2} -inp alpha_{0}/alpha_{0}.in -npool {3} | tee results/alpha_{0}.out\n'
             script += s.format(alpha, np, run_cmd, self.run_params['pools'], 
-                               self.run_params['mpicmd'])
+                               self.run_params['mpicmd'], npflag)
 
         script += 'mv {1}/* alpha_{0}/\n'.format(alpha, self.string_params['outdir'])
 
