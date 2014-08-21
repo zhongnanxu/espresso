@@ -917,7 +917,7 @@ class Espresso(Calculator):
 
         def read_cputime(i, line):
             if line.lower().startswith('     total cpu'):
-                cputime = line.split()[-2]
+                cputime = float(line.split()[-2])
                 return cputime
             return None
 
@@ -1017,7 +1017,7 @@ class Espresso(Calculator):
                 self.walltime = walltime
 
             cputime = read_cputime(i, line)
-            if not walltime == None:
+            if not cputime == None:
                 self.cputime = cputime
 
             diago_thr_init = read_diago_thr_init(line)
