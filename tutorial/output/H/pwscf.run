@@ -1,0 +1,13 @@
+#!/bin/bash
+#PBS -l walltime=50:00:00
+#PBS -j oe
+#PBS -N output/H
+#PBS -l nodes=1:ppn=1
+
+cd $PBS_O_WORKDIR
+sed -i 's@${PBS_JOBID}@'${PBS_JOBID}'@' pwscf.in
+/home-research/zhongnanxu/opt/espresso-5.0.2-ifort-internal-lapack/bin/pw.x < pwscf.in | tee pwscf.out
+
+mv /scratch/${PBS_JOBID}/* .
+rm -fr /scratch/${PBS_JOBID}
+# end

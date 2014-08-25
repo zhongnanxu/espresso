@@ -1,0 +1,222 @@
+% Created 2014-08-25 Mon 15:47
+\documentclass[colorlinks=true,urlcolor=blue,linkcolor=blue,citecolor=red]{article}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage[T1]{fontenc}
+\usepackage{fixltx2e}
+\usepackage{graphicx}
+\usepackage{longtable}
+\usepackage{float}
+\usepackage{wrapfig}
+\usepackage{rotating}
+\usepackage[normalem]{ulem}
+\usepackage{amsmath}
+\usepackage{textcomp}
+\usepackage{marvosym}
+\usepackage{wasysym}
+\usepackage{amssymb}
+\usepackage{amsmath}
+\usepackage[version=3]{mhchem}
+\usepackage[numbers,super,sort&compress]{natbib}
+\usepackage{natmove}
+\usepackage{url}
+\usepackage{minted}
+\usepackage{underscore}
+\usepackage[linktocpage,pdfstartview=FitH,colorlinks,
+linkcolor=blue,anchorcolor=blue,
+citecolor=blue,filecolor=blue,menucolor=blue,urlcolor=blue]{hyperref}
+\usepackage{attachfile}
+\usepackage{minted}
+\usepackage{lmodern}
+\usepackage{makeidx}
+\usepackage[margin=1in]{geometry}
+\author{Zhongnan Xu}
+\date{14-8-2014}
+\title{Tutorial to using Quantum ESPRESSO with the espresso.py module}
+\begin{document}
+
+\maketitle
+\tableofcontents
+
+\section{Introduction}
+\label{sec-1}
+The purpose of tutorial is instruct one how to perform first principles, density functional theory (DFT) calculations efficiently with the \textsc{QUANTUM-Espresso} program along with the python wrapper \texttt{espresso.py}. The purpose of this guide, as of now, is \emph{not} instructional for\ldots{}
+
+\begin{enumerate}
+\item Physics behind implementations of DFT
+\item Setting up specific atoms objects for calculations
+\item Calculating physical or thermodynamic properties from DFT
+\end{enumerate}
+
+Instead, we will go over some of the nuts and bolts of successfully running DFT calculations. These topics include
+
+\begin{enumerate}
+\item Writing code for submitting, checking, and reading PWSCF and DOS calculations
+\item Some parameter optimization tests
+\item Dealing with common errors
+\end{enumerate}
+
+Therefore, it assumed that user has had some experience with ASE, and the explanations of constructing the atoms object will not be given.
+
+\section{Installation}
+\label{sec-2}
+The \texttt{espresso.py} module requires both \textsc{QUANTUM-Espresso} and the Atomic Simulation Environment (ASE) to be installed and working on the system. These are both free and can be found at \url{http://www.quantum-espresso.org/} and \url{https://wiki.fysik.dtu.dk/ase/}, respectively. All python modules required are the same as listed for ASE.
+
+Once the \texttt{espresso.py} module has been downloaded, just add this line to your path.
+
+\begin{minted}[frame=lines,fontsize=\scriptsize,linenos]{bash}
+export PYTHONPATH=path/to/espresso/espresso:$PYTHONPATH
+\end{minted}
+
+Note, the espresso folder within the overall \texttt{espresso.py} module folder (also named espresso) is the path that must be added.
+
+\section{Performing calculations}
+\label{sec-3}
+\subsection{PWSCF calculations}
+\label{sec-3-1}
+The most common calculation you will be performing are Plane Wave Self-Consistent Field (PWSCF) calculations. In these calculations, we specify the atomic coordinates, pseudopotentials, and parameters, and it calculates for us important thermodynamic quantities such as the total energy, force, and stresses. After a successful calculation, we can then extract the data.
+
+Note, performing this calculation does not give us human readable information on the electronic structure besides basic information on band occupancies. Obtaining useful electronic structure information for the construction of band structures and density of states (DOS) require followup calculations from programs within the \textsc{QUANTUM-Espresso} module and will be summarized in following sections. However, it all starts with the \texttt{pwscf} command.
+
+\subsubsection{The simplest possible example: H in a box}
+\label{sec-3-1-1}
+One of the simplest systems to calculate (though not necessarily the fastest) is an atom in a box. Because of the large size of the box and sharp gradients in the electronic density due to it being an atomic state, electronic convergence can be surprisingly slow. However, this is by far the easiest system to imagine, so we start with this to show the basics of running commands.
+
+The beginning of the script will always start the same
+\begin{minted}[frame=lines,fontsize=\scriptsize,linenos]{python}
+from espresso import * # First import the module
+\end{minted}
+
+This command imports all of the commands you will ever need to run \textsc{QUATNUM-Espresso} calculations. This will be imported pretty early on.
+
+After this, we need to construct our atoms object. This is done below. The H atom is at the (0, 0, 0) coordinate, and the cell is a cuboid with edge lengths 8, 9, and 10 $\AA$ long. We need a cuboid to break symmetry, which is required for finding the ground states of gaseous atoms. The box needs to be large enough to minimize neighbor interactions.
+
+\begin{minted}[frame=lines,fontsize=\scriptsize,linenos]{python}
+from ase.atoms import Atoms, Atom # Import the atoms object from ASE
+
+atoms = Atoms([Atom('H', (0, 0, 0))],
+              cell = (8, 9, 10))
+\end{minted}
+
+Now we run the calculation.
+
+\begin{minted}[frame=lines,fontsize=\scriptsize,linenos]{python}
+with Espresso('examples/output/H',         # With respect to the directory this script
+                                           # is in, this is the directory where the
+                                           # calculation will be taking place. The module
+                                           # will automatically make the folders necessary.
+                                           # Just assure the folder doesn't exist, and if it
+                                           # does, that it's empty
+
+              atoms=atoms,                 # This is where we put in the atoms object
+
+              ecutwfc=60.0, ecutrho=600.0, # These are the kinetic energy cutoff parameters
+                                           # These values determine heavily the convergence
+                                           # of your calculation and therefore the time and
+                                           # accuracy of your calculation. You should perform
+                                           # convergence tests before performing large amounts
+                                           # of studies.
+
+              kpts=(1, 1, 1),              # This is how many kpoints in the x, y, and z
+                                           # direction of the unit cell. Similar to ecutwfc
+                                           # and ecutrho, the more kpoints the more converged
+                                           # and expensive. Testing is recommended.
+
+              occupations='smearing',      # This is to determing the smearing at electrons
+                                           # at the fermi level. Typically we do smearing.
+
+              smearing='gauss',            # The type of smearing we want. Typically its gauss
+                                           # for insulators and mp (methfessel-paxton) for
+                                           # metals.
+
+              degauss=0.01) as calc:       # The width of the smearing. Will dicuss this value
+                                           # later.
+    calc.calculate()
+\end{minted}
+
+Performing this calculation will return one of four things.
+
+\begin{enumerate}
+\item The exception \texttt{EspressoSubmitted} \\ \\
+   This means your job was successfully submitted! Whether its correctly running or not is a different story, and examples of this will be covered in later sections. If you submit job for the first time in an empty or nonexistent directory, you should always receive this exception.
+
+\item The exception \texttt{EspressoRunning} \\
+   This means your job is either queued or running. If you catch this, nothing was modified in any of your input files.
+
+\item The exception \texttt{EspressoNotConverged} \\
+   This means the job has finished, but for some reason or another the calculation is not converged. Besides directly looking at the calculation directory yourself, the \texttt{espresso.py} module does contain some info on what happened and what you should do. Coverage on troubleshooting techniques will be later sections.
+
+\item Nothing \\
+   This means your calculation was submitted earlier, has finished, and was converged.
+\end{enumerate}
+
+To catch these exceptions, one would re-write calculation line (calc.calculate). Mine typically look like this.
+
+\begin{minted}[frame=lines,fontsize=\scriptsize,linenos]{python}
+    try:
+        calc.calculate()
+        print calc.espressodir, 'Complete'
+    except (EspressoSubmitted, EspressoRunning):
+        print calc.espressodir, 'Running'
+    except (EspressoNotConverged):
+        print calc.espressodir, 'Not Converged'
+\end{minted}
+
+In the code above, I have it print either 'Complete', 'Running', or 'Not Converged' so I know what the status is. The object calc.espressodir is just a string that's the same as the relative directory path you've entered above. In this script, it would just be 'examples/output/H'. The complete code is below and can be run directly. The downloadable python script can be found in the attachment below.
+
+\begin{minted}[frame=lines,fontsize=\scriptsize,linenos]{python}
+from espresso import * # First import the module
+from ase.atoms import Atoms, Atom # Import the atoms object from ASE
+
+atoms = Atoms([Atom('H', (0, 0, 0))],
+              cell = (8, 9, 10))
+
+with Espresso('output/H',                  # With respect to the directory this script
+                                           # is in, this is the directory where the
+                                           # calculation will be taking place. The module
+                                           # will automatically make the folders necessary.
+                                           # Just assure the folder doesn't exist, and if it
+                                           # does, that it's empty
+
+              atoms=atoms,                 # This is where we put in the atoms object
+
+              ecutwfc=60.0, ecutrho=600.0, # These are the kinetic energy cutoff parameters
+                                           # These values determine heavily the convergence
+                                           # of your calculation and therefore the time and
+                                           # accuracy of your calculation. You should perform
+                                           # convergence tests before performing large amounts
+                                           # of studies.
+
+              kpts=(1, 1, 1),              # This is how many kpoints in the x, y, and z
+                                           # direction of the unit cell. Similar to ecutwfc
+                                           # and ecutrho, the more kpoints the more converged
+                                           # and expensive. Testing is recommended.
+
+              occupations='smearing',      # This is to determing the smearing at electrons
+                                           # at the fermi level. Typically we do smearing.
+
+              smearing='gauss',            # The type of smearing we want. Typically its gauss
+                                           # for insulators and mp (methfessel-paxton) for
+                                           # metals.
+
+              degauss=0.01) as calc:       # The width of the smearing. Will dicuss this value
+                                           # later.
+    try:
+        calc.calculate()
+        print calc.espressodir, 'Complete'
+    except (EspressoSubmitted, EspressoRunning):
+        print calc.espressodir, 'Running'
+    except (EspressoNotConverged):
+        print calc.espressodir, 'Not Converged'
+\end{minted}
+
+\subsection{DOS calculations}
+\label{sec-3-2}
+\section{Parameter optimization}
+\label{sec-4}
+\section{Troubleshooting}
+\label{sec-5}
+
+\bibliography{../../Dropbox/bibliography/library}
+% Emacs 24.3.2 (Org mode 8.2.6)
+\end{document}

@@ -1,6 +1,15 @@
 *.py[cod]
 tests/*
 
+# PWSCF things we do not need
+*.ig*
+*.wfc*
+*.atwfc*
+*.satwfc*
+*.save
+*.occup
+*.bfgs
+
 # C extensions
 *.so
 
