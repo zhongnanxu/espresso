@@ -1,0 +1,46 @@
+&CONTROL
+ wf_collect = .True.
+ tprnfor = .True.
+ outdir = '/scratch/1093565.gilgamesh.cheme.cmu.edu'
+ pseudo_dir = '/home-research/zhongnanxu/pseudopotentials/gbrv_espresso_pseudo'
+/
+&SYSTEM
+ ibrav = 0
+ nat = 6
+ ntyp = 2
+ nbnd = 69
+ starting_magnetization(1) = 2
+ starting_magnetization(2) = 0
+ ecutwfc = 40
+ ecutrho = 500
+ occupations = 'smearing'
+ degauss = 0.01
+ smearing = 'mp'
+ nspin = 2
+ Hubbard_U(1) = 0
+ Hubbard_U(2) = 0
+ Hubbard_alpha(1) = 0
+ Hubbard_alpha(2) = 0
+/
+&ELECTRONS
+/
+&IONS
+/
+&CELL
+/
+K_POINTS {automatic}
+ 6 6 6 0 0 0
+ATOMIC_SPECIES
+ Ti0 47.88 ti_pbe_v1.uspp.F.UPF
+ O1 15.9994 o_pbe_v1.2.uspp.F.UPF
+ATOMIC_POSITIONS {crystal}
+ Ti0 0.00000 0.00000 0.00000 0 0 0
+ Ti0 0.50000 0.50000 0.50000 0 0 0
+ O1 0.31000 0.31000 0.00000 1 1 0
+ O1 -0.31000 -0.31000 0.00000 1 1 0
+ O1 0.81000 0.19000 0.50000 1 1 0
+ O1 0.19000 0.81000 0.50000 1 1 0
+CELL_PARAMETERS {angstrom}
+ 4.65 0.0 0.0
+ 0.0 4.65 0.0
+ 0.0 0.0 2.97

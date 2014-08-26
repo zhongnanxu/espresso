@@ -173,11 +173,15 @@ class EspressoDos(object):
     def get_energies(self):
         return np.array(self.energies)
         
-    def get_total_dos(self, spin=False):
-        if spin == False:
+    def get_total_dos(self, spin=None):
+        if spin == None:
             return np.array(self.total_dos)
-        if spin == True:
-            return np.array(self.total_dos_up), np.array(self.total_dos_down)
+        elif spin == '+':
+            return np.array(self.total_dos_up)
+        elif spin == '-':    
+            return np.array(self.total_dos_down)
+        else:
+            raise ValueError('spin can only be None, +, or -')
 
     def get_site_dos(self, atom, orbital, proj=None, spin=None):
         '''This returns the site projected density of states for

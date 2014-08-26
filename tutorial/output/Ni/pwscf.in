@@ -1,0 +1,37 @@
+&CONTROL
+ wf_collect = .True.
+ tprnfor = .True.
+ outdir = '/scratch/1093500.gilgamesh.cheme.cmu.edu'
+ pseudo_dir = '/home-research/zhongnanxu/pseudopotentials/gbrv_espresso_pseudo'
+/
+&SYSTEM
+ ibrav = 0
+ nat = 1
+ ntyp = 1
+ nbnd = 24
+ starting_magnetization(1) = 0
+ ecutwfc = 40
+ ecutrho = 500
+ occupations = 'smearing'
+ degauss = 0.01
+ smearing = 'mp'
+ nspin = 2
+ Hubbard_U(1) = 0
+ Hubbard_alpha(1) = 0
+/
+&ELECTRONS
+/
+&IONS
+/
+&CELL
+/
+K_POINTS {automatic}
+ 6 6 6 0 0 0
+ATOMIC_SPECIES
+ Ni0 58.6934 ni_pbe_v1.2.uspp.F.UPF
+ATOMIC_POSITIONS {crystal}
+ Ni0 0.00000 0.00000 0.00000
+CELL_PARAMETERS {angstrom}
+ 0.0 1.76 1.76
+ 1.76 0.0 1.76
+ 1.76 1.76 0.0
