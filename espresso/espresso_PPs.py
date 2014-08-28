@@ -143,7 +143,7 @@ qe_pseudo = {'Ag':('Ag.pbe-d-rrkjus.UPF', 11),
              'Fe':('Fe.pbe-nd-rrkjus.UPF', 8),
              'H' :('H.pbe-rrkjus.UPF', 1),
              'Ir':('Ir.pbe-n-rrkjus.UPF', 9),
-             'Li':('Li.pbe-n-van.UPF', 1)
+             'Li':('Li.pbe-n-van.UPF', 1),
              'Mn':('Mn.pbe-sp-van.UPF', 15),
              'Nb':('Nb.pbe-nsp-van.UPF', 13),
              'Ni':('Ni.pbe-nd-rrkjus.UPF', 10),
