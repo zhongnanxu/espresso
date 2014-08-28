@@ -132,4 +132,28 @@ gbrv_v101 = {'Ag': ('ag_pbe_v1.uspp.F.UPF', 20),
              'W': ('w_pbe_v1.uspp.F.UPF', 14),
              'Y': ('y_pbe_v1.uspp.F.UPF', 11),
              'Zn': ('zn_pbe_v1.uspp.F.UPF', 20),
-             'Zr': ('zr_pbe_v1.uspp.F.UPF', 12)}    
+             'Zr': ('zr_pbe_v1.uspp.F.UPF', 12)}
+
+qe_pseudo = {'Ag':('Ag.pbe-d-rrkjus.UPF', 11),
+             'Be':('Be.pbe-rrkjus.UPF', 2),
+             'Co':('Co.pbe-nd-rrkjus.UPF', 9),
+             'C' :('C.pbe-rrkjus.UPF', 4),
+             'Cr':('Cr.pbe-sp-van.UPF', 14),
+             'Cu':('Cu.pbe-n-van_ak.UPF', 11),
+             'Fe':('Fe.pbe-nd-rrkjus.UPF', 8),
+             'H' :('H.pbe-rrkjus.UPF', 1),
+             'Ir':('Ir.pbe-n-rrkjus.UPF', 9),
+             'Li':('Li.pbe-n-van.UPF', 1)
+             'Mn':('Mn.pbe-sp-van.UPF', 15),
+             'Nb':('Nb.pbe-nsp-van.UPF', 13),
+             'Ni':('Ni.pbe-nd-rrkjus.UPF', 10),
+             'N' :('N.pbe-rrkjus.UPF', 5),
+             'O' :('O.pbe-rrkjus.UPF', 6),
+             'Os':('Os.pbe-n-van.UPF', 8),
+             'Pt':('Pt.pbe-nd-rrkjus.UPF', 10), # alt Pt.pbe-n-van.UPF
+             'Rh':('Rh.pbe-nd-rrkjus.UPF', 9),
+             'Ru':('Ru.pbe-n-van.UPF', 8),
+             'Ti':('Ti.pbe-sp-van_ak.UPF', 12),
+             'V' :('V.pbe-n-van.UPF', 5),
+             'W' :('W.pbe.nsp-van.UPF', 14),
+             'Zr':('Zr.pbe-nsp-van.UPF', 12)}
