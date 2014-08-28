@@ -170,7 +170,7 @@ def run_series(name, calcs, walltime='50:00:00', ppn=1, nodes=1, processor=None,
     # First we want to check to see if a calculation is already running
     if os.path.exists('jobid'):
         # get the jobid
-        jobid = open(jobid).readline().split()[-1]
+        jobid = open('jobid').readline().split()[-1]
 
         # see if jobid is in queue
         if qsys == 'pbs':
@@ -193,7 +193,7 @@ def run_series(name, calcs, walltime='50:00:00', ppn=1, nodes=1, processor=None,
     # initial calculations we need to copy the pwscf file from the previous calculation
 
     # Start the run script
-    if self.run_params['qsys'] == 'pbs':
+    if qsys == 'pbs':
         q='PBS'
         npflag='-np'
         subcmd='qsub'
@@ -214,18 +214,18 @@ def run_series(name, calcs, walltime='50:00:00', ppn=1, nodes=1, processor=None,
     # Now add pieces to the script depending on whether we need to
     # pick the processor or the memory
     if processor == None:
-        if self.run_params['qsys'] == 'pbs':
+        if qsys == 'pbs':
             script += '#PBS -l nodes={0:d}:ppn={1:d}\n'.format(nodes, ppn)
         else:
             script += '#SBATCH --nodes={0:d} --ntasks-per-node={1:d}\n'.format(nodes, ppn)
     else:
-        if self.run_params['qsys'] == 'pbs':
+        if qsys == 'pbs':
             script += '#PBS -l nodes={0:d}:ppn={1:d}:{2}\n'.format(nodes, ppn, processor)
         else:
             script += '#SBATCH --nodes={0:d} --ntasks-per-node={1:d} --nodelist={2}\n'.format(nodes, ppn, processor)
         
     if mem != None:
-        if self.run_params['qsys'] == 'pbs':
+        if qsys == 'pbs':
             script += '#PBS -l mem={0}\n'.format(mem)
         else:
             script += '#SBATCH --mem-per-cpu={0}\n'.format(1024*int(mem.lower().split('gb')[0]))
@@ -246,16 +246,17 @@ def run_series(name, calcs, walltime='50:00:00', ppn=1, nodes=1, processor=None,
     np = nodes * ppn
 
     # The beginning of the code will be different depending on whether we need a restart
+    calc = calcs[0] # We need this for some variables
     if len(done_dirs) != 0:
         # Copy the previous converged WFC files into /scratch/${PBS_JOBID} directory
         script += 'cd {0}\n'.format(done_dirs[-1])
         
         # Since we haven't run a script yet, we need to make the directory
-        script += 'mkdir {0}\n'.format(self.string_params['outdir'])
+        script += 'mkdir {0}\n'.format(calc.string_params['outdir'])
 
         s = '{0} pwscf.atwfc* pwscf.satwfc1* pwscf.wfc* pwscf.occup pwscf.igk* pwscf.save '
         script += s.format(move)
-        script += '{0}\n'.format(self.string_params['outdir'])
+        script += '{0}\n'.format(calc.string_params['outdir'])
 
     # Change into directory and edit input file to reflect correct /scratch dir
     script += 'cd {0}\n'.format(dirs[0])
@@ -271,13 +272,12 @@ def run_series(name, calcs, walltime='50:00:00', ppn=1, nodes=1, processor=None,
         script += s.format(calc.run_params['mpicmd'], np, executables[0], names[0], pools, npflags)
 
     # Copy completed job wavefunction from /scratch/${PBS_JOBID} back into working directory
-    script += 'cd {0}\n'.format(self.string_params['outdir'])
+    script += 'cd {0}\n'.format(calc.string_params['outdir'])
     s = '{0} pwscf.atwfc* pwscf.satwfc1* pwscf.wfc* pwscf.occup pwscf.igk* pwscf.save {1}\n'
     script += s.format(move, dirs[0])
-    script += 'cd {0}\n'.format(dirs[0])
             
     # Now do the rest of the calculations
-    for d, n, r in zip(dirs[1:], names[1:], executables[1:]):
+    for calc, d, n, r in zip(calcs[1:], dirs[1:], names[1:], executables[1:]):
         # Change into next directory and edit input file to reflect correct scratch
         script += '{0}\n'.format(update_atoms.format(d))
         script += 'cd {0}\n'.format(d)
@@ -291,7 +291,7 @@ def run_series(name, calcs, walltime='50:00:00', ppn=1, nodes=1, processor=None,
             script += s.format(calc.run_params['mpicmd'], np, r, n, pools, npflag)
 
         # Copy the wavefunction files back into home directory
-        script += 'cd {0}\n'.format(self.string_params['outdir'])
+        script += 'cd {0}\n'.format(calc.string_params['outdir'])
         s = '{0} pwscf.atwfc* pwscf.satwfc1* pwscf.wfc* pwscf.occup pwscf.igk* pwscf.save {1}\n'
         script += s.format(move, d)
 

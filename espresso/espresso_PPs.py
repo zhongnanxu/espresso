@@ -134,7 +134,7 @@ gbrv_v101 = {'Ag': ('ag_pbe_v1.uspp.F.UPF', 20),
              'Zn': ('zn_pbe_v1.uspp.F.UPF', 20),
              'Zr': ('zr_pbe_v1.uspp.F.UPF', 12)}
 
-qe_pseudo = {'Ag':('Ag.pbe-d-rrkjus.UPF', 11),
+QE_PSEUDO = {'Ag':('Ag.pbe-d-rrkjus.UPF', 11),
              'Be':('Be.pbe-rrkjus.UPF', 2),
              'Co':('Co.pbe-nd-rrkjus.UPF', 9),
              'C' :('C.pbe-rrkjus.UPF', 4),
