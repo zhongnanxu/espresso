@@ -82,7 +82,7 @@ def run(self, series=False, jobid='jobid'):
 
     # If disk_io is not 'none', we need to edit the input file so the wfcdir
     # variable correctly points to the local folder where the wfc are found
-    if self.string_params['outdir'].startswith('/scratch/'):
+    if self.string_params['outdir'].startswith(os.path.dirname(ESPRESSORC['rundir'])):
         if self.run_params['qsys'] == 'pbs':
             script += "sed -i 's@${PBS_JOBID}@'${PBS_JOBID}'@' " + '{0}\n'.format(in_file)
             # script += 'mkdir {0}\n'.format(self.run_params['rundir'])
@@ -99,7 +99,7 @@ def run(self, series=False, jobid='jobid'):
                                    self.run_params['mpicmd'], npflag)
 
     # We want to copy the wavefunction file back into the CWD
-    if self.string_params['outdir'].startswith('/scratch/'):
+    if self.string_params['outdir'].startswith(os.path.dirname(ESPRESSORC['rundir'])):
         script += '\nmv {0}/* .\n'.format(self.string_params['outdir'])
         script += 'rm -fr {0}\n'.format(self.string_params['outdir'])
 
@@ -269,7 +269,7 @@ def run_series(name, calcs, walltime='50:00:00', ppn=1, nodes=1, processor=None,
         script += '{0} < {1}.in | tee {1}.out\n\n'.format(executables[0], names[0])
     else:
         s = '{0} {5} {1} {2} -inp {3}.in -npool {4} | tee {3}.out \n\n'
-        script += s.format(calc.run_params['mpicmd'], np, executables[0], names[0], pools, npflags)
+        script += s.format(calc.run_params['mpicmd'], np, executables[0], names[0], pools, npflag)
 
     # Copy completed job wavefunction from /scratch/${PBS_JOBID} back into working directory
     script += 'cd {0}\n'.format(calc.string_params['outdir'])
