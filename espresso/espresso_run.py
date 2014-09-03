@@ -161,7 +161,7 @@ def run_series(name, calcs, walltime='50:00:00', ppn=1, nodes=1, processor=None,
 
     # If all calculations are done, then just exit the script
     if len(dirs) == 0:
-        return
+        return 'done'
 
     cwd = os.getcwd()
     filename = os.path.basename(name)
@@ -187,7 +187,7 @@ def run_series(name, calcs, walltime='50:00:00', ppn=1, nodes=1, processor=None,
                 job_status = fields[4]
                 if job_status != 'C':
                     os.chdir(cwd)
-                    return
+                    return 'running'
 
     # Begin writing the script we need to submit to run. If we are restarting from finished
     # initial calculations we need to copy the pwscf file from the previous calculation
@@ -315,7 +315,7 @@ def run_series(name, calcs, walltime='50:00:00', ppn=1, nodes=1, processor=None,
 
     os.chdir(cwd)
 
-    return 
+    return 'running'
 
 def get_series(calcs):
     '''The purpose of this function is to gather the piece of information from a series
