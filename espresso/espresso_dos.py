@@ -20,6 +20,12 @@ class EspressoDos(object):
         self.efermi = efermi
         self.calc = Espresso()
 
+        # Check to see if the calculation is magnetic
+        if self.calc.int_params['nspin'] == 2:
+            self.mag = True
+        else:
+            self.mag = False
+
         if self.calc.string_params['prefix'] == None:
             self.prefix = 'pwscf'
         else:
@@ -78,9 +84,12 @@ class EspressoDos(object):
         for line in f:
             line = line.split()
             self.energies.append(float(line[0]) - self.efermi)
-            self.total_dos_up.append(float(line[3]))
-            self.total_dos_down.append(float(line[4]))
-            self.total_dos.append(float(line[3]) + float(line[4]))
+            if self.mag == True:
+                self.total_dos_up.append(float(line[3]))
+                self.total_dos_down.append(float(line[4]))
+                self.total_dos.append(float(line[3]) + float(line[4]))
+            else:
+                self.total_dos.append(float(line[2]))
         f.close()        
         
         return
@@ -122,10 +131,16 @@ class EspressoDos(object):
             f.readline()
             for line in f:
                 line = line.split()
-                data['tot+'].append(float(line[1]))
-                data['tot-'].append(float(line[2]))
-                data['s+'].append(float(line[3]))
-                data['s-'].append(float(line[4]))
+                if self.mag == True:
+                    data['tot+'].append(float(line[1]))
+                    data['tot-'].append(float(line[2]))
+                    data['s+'].append(float(line[3]))
+                    data['s-'].append(float(line[4]))
+                else:
+                    data['tot+'].append(float(line[1]))
+                    data['tot-'].append(0)
+                    data['s+'].append(float(line[2]))
+                    data['s-'].append(float(0))
             f.close()
             return data
         
@@ -136,14 +151,24 @@ class EspressoDos(object):
             f.readline()
             for line in f:
                 line = line.split()
-                data['tot+'].append(float(line[1]))
-                data['tot-'].append(float(line[2]))
-                data['pz+'].append(float(line[3]))
-                data['pz-'].append(float(line[4]))
-                data['px+'].append(float(line[5]))
-                data['px-'].append(float(line[6]))
-                data['py+'].append(float(line[7]))
-                data['py-'].append(float(line[8]))
+                if self.mag == True:
+                    data['tot+'].append(float(line[1]))
+                    data['tot-'].append(float(line[2]))
+                    data['pz+'].append(float(line[3]))
+                    data['pz-'].append(float(line[4]))
+                    data['px+'].append(float(line[5]))
+                    data['px-'].append(float(line[6]))
+                    data['py+'].append(float(line[7]))
+                    data['py-'].append(float(line[8]))
+                else:
+                    data['tot+'].append(float(line[1]))
+                    data['tot-'].append(0)
+                    data['pz+'].append(float(line[2]))
+                    data['pz-'].append(0)
+                    data['px+'].append(float(line[3]))
+                    data['px-'].append(0)
+                    data['py+'].append(float(line[4]))
+                    data['py-'].append(0)
             f.close()
             return data
 
@@ -155,18 +180,32 @@ class EspressoDos(object):
             f.readline()
             for line in f:
                 line = line.split()
-                data['tot+'].append(float(line[1]))
-                data['tot-'].append(float(line[2]))
-                data['dz2+'].append(float(line[3]))
-                data['dz2-'].append(float(line[4]))
-                data['dzx+'].append(float(line[5]))
-                data['dzx-'].append(float(line[6]))
-                data['dzy+'].append(float(line[7]))
-                data['dzy-'].append(float(line[8]))
-                data['dx2-y2+'].append(float(line[9]))
-                data['dx2-y2-'].append(float(line[10]))
-                data['dxy+'].append(float(line[11]))
-                data['dxy-'].append(float(line[12]))
+                if self.mag == True:
+                    data['tot+'].append(float(line[1]))
+                    data['tot-'].append(float(line[2]))
+                    data['dz2+'].append(float(line[3]))
+                    data['dz2-'].append(float(line[4]))
+                    data['dzx+'].append(float(line[5]))
+                    data['dzx-'].append(float(line[6]))
+                    data['dzy+'].append(float(line[7]))
+                    data['dzy-'].append(float(line[8]))
+                    data['dx2-y2+'].append(float(line[9]))
+                    data['dx2-y2-'].append(float(line[10]))
+                    data['dxy+'].append(float(line[11]))
+                    data['dxy-'].append(float(line[12]))
+                else:
+                    data['tot+'].append(float(line[1]))
+                    data['tot-'].append(0)
+                    data['dz2+'].append(float(line[2]))
+                    data['dz2-'].append(0)
+                    data['dzx+'].append(float(line[3]))
+                    data['dzx-'].append(0)
+                    data['dzy+'].append(float(line[4]))
+                    data['dzy-'].append(0)
+                    data['dx2-y2+'].append(float(line[5]))
+                    data['dx2-y2-'].append(0)
+                    data['dxy+'].append(float(line[6]))
+                    data['dxy-'].append(0)                    
             f.close()
             return data
 
