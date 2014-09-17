@@ -279,7 +279,7 @@ class Espresso(Calculator):
             raise EspressoUnknownState, 'I do not recognize the state of this directory'
 
         if self.atoms == None:
-            raise KeyError('No atoms object specified')
+            raise KeyError('No atoms object specified in {0}'.format(self.espressodir))
             
         # Store the old parameters read from files for restart purposes
         self.old_real_params = self.real_params.copy()
@@ -853,7 +853,7 @@ class Espresso(Calculator):
 
         def read_pressure(line):
             if line.lower().startswith('          total   stress'):
-                p = float(line.split()[-1]) * 1e8 * 6.241506363e18 / (1e10) ** 3
+                p = float(line.split('=')[-1]) * 1e8 * 6.241506363e18 / (1e10) ** 3
                 return p
             return None
 
@@ -950,6 +950,7 @@ class Espresso(Calculator):
 
         self.converged = False
         self.electronic_converged = True
+        self.pressure = None
         self.calc_finished = False
         self.all_energies, self.all_forces, self.all_cells, self.all_pos = [], [], [], []
         self.all_tot_magmoms = []

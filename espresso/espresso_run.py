@@ -150,18 +150,24 @@ def run_series(name, calcs, walltime='50:00:00', ppn=1, nodes=1, processor=None,
     done_dirs, done_names, done_executables = [], [], []
 
     # Adjust the lists to make way for converged calculations
-    if save == True:
-        for i in range(len(dirs)):
-            if convergences[i] == True:
-                done_dirs.append(dirs.pop(0))
-                done_names.append(names.pop(0))
-                done_executables.append(executables.pop(0))
-            else:
-                break
+    for i in range(len(dirs)):
+        if convergences[i] == True:
+            done_dirs.append(dirs.pop(0))
+            done_names.append(names.pop(0))
+            done_executables.append(executables.pop(0))
+        else:
+            break
 
     # If all calculations are done, then just exit the script
     if len(dirs) == 0:
         return 'done'
+
+    # If we didn't save the wavefunctions and something is not done, must restart
+    # from the beginning of the calculation
+    if len(dirs) != 0 and save == False:
+        dirs = done_dirs + dirs
+        names = done_names + names
+        executables == done_executables + executables
 
     cwd = os.getcwd()
     filename = os.path.basename(name)
@@ -233,11 +239,6 @@ def run_series(name, calcs, walltime='50:00:00', ppn=1, nodes=1, processor=None,
     script += '\n' # I just add this so there's a space after the #PBS commands
 
     # Now add on the parts of the script needed for the restarts.
-    if save == True:
-        move = 'cp -r'
-    else:
-        move = 'mv'
-
     if update_pos == True:
         update_atoms = 'update_atoms_espresso {0}'
     else:
@@ -254,8 +255,7 @@ def run_series(name, calcs, walltime='50:00:00', ppn=1, nodes=1, processor=None,
         # Since we haven't run a script yet, we need to make the directory
         script += 'mkdir {0}\n'.format(calc.string_params['outdir'])
 
-        s = '{0} pwscf.atwfc* pwscf.satwfc1* pwscf.wfc* pwscf.occup pwscf.igk* pwscf.save '
-        script += s.format(move)
+        s = 'cp -r pwscf.atwfc* pwscf.satwfc1* pwscf.wfc* pwscf.occup pwscf.igk* pwscf.save '
         script += '{0}\n'.format(calc.string_params['outdir'])
 
     # Change into directory and edit input file to reflect correct /scratch dir
@@ -273,15 +273,16 @@ def run_series(name, calcs, walltime='50:00:00', ppn=1, nodes=1, processor=None,
 
     # Copy completed job wavefunction from /scratch/${PBS_JOBID} back into working directory
     script += 'cd {0}\n'.format(calc.string_params['outdir'])
-    s = '{0} pwscf.atwfc* pwscf.satwfc1* pwscf.wfc* pwscf.occup pwscf.igk* pwscf.save {1}\n'
-    script += s.format(move, dirs[0])
+    if save == True:
+        s = 'cp -r pwscf.atwfc* pwscf.satwfc1* pwscf.wfc* pwscf.occup pwscf.igk* pwscf.save {0}\n'
+        script += s.format(dirs[0])
             
     # Now do the rest of the calculations
     for calc, d, n, r in zip(calcs[1:], dirs[1:], names[1:], executables[1:]):
         # Change into next directory and edit input file to reflect correct scratch
         script += '{0}\n'.format(update_atoms.format(d))
         script += 'cd {0}\n'.format(d)
-        script  += "sed -i 's@${PBS_JOBID}@'${PBS_JOBID}'@' " + '{0}.in\n'.format(n)
+        script += "sed -i 's@${PBS_JOBID}@'${PBS_JOBID}'@' " + '{0}.in\n'.format(n)
 
         # Run the job
         if (ppn == 1 and nodes == 1):
@@ -292,8 +293,11 @@ def run_series(name, calcs, walltime='50:00:00', ppn=1, nodes=1, processor=None,
 
         # Copy the wavefunction files back into home directory
         script += 'cd {0}\n'.format(calc.string_params['outdir'])
-        s = '{0} pwscf.atwfc* pwscf.satwfc1* pwscf.wfc* pwscf.occup pwscf.igk* pwscf.save {1}\n'
-        script += s.format(move, d)
+        
+        # We want the last wavefunction, which is useful for DOS calculations.
+        if (dirs[-1] == d or save == True):
+            s = 'cp -r pwscf.atwfc* pwscf.satwfc1* pwscf.wfc* pwscf.occup pwscf.igk* pwscf.save {0}\n'
+            script += s.format(d)
 
     if test == False:
         run_file = open(filename + '.run', 'w')
