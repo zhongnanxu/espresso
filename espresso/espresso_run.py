@@ -48,10 +48,9 @@ def run(self, series=False, jobid='jobid'):
     if self.run_params['processor'] == None:
         if self.run_params['qsys'] == 'pbs':
             script += '#PBS -l nodes={0:d}:ppn={1:d}\n'.format(self.run_params['nodes'],
-                                                           self.run_params['ppn'])
+                                                               self.run_params['ppn'])
         else:
-            script += '#SBATCH --nodes={0:d} --ntasks-per-node={1:d}\n'.format(self.run_params['nodes'],
-                                                           self.run_params['ppn'])
+            script += '#SBATCH --nodes={0:d} --ntasks-per-node={1:d}\n'.format(self.run_params['nodes'], self.run_params['ppn'])
     else:
         if self.run_params['qsys'] == 'pbs':
             script += '#PBS -l nodes={0:d}:ppn={1:d}:{2}\n'.format(self.run_params['nodes'],
@@ -255,7 +254,7 @@ def run_series(name, calcs, walltime='50:00:00', ppn=1, nodes=1, processor=None,
         # Since we haven't run a script yet, we need to make the directory
         script += 'mkdir {0}\n'.format(calc.string_params['outdir'])
 
-        s = 'cp -r pwscf.atwfc* pwscf.satwfc1* pwscf.wfc* pwscf.occup pwscf.igk* pwscf.save '
+        script += 'cp -r pwscf.atwfc* pwscf.satwfc1* pwscf.wfc* pwscf.occup pwscf.igk* pwscf.save '
         script += '{0}\n'.format(calc.string_params['outdir'])
 
     # Change into directory and edit input file to reflect correct /scratch dir

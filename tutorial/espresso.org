@@ -294,6 +294,8 @@ plt.savefig('figures/Ni-total-DOS.png')
 plt.show()
 #+END_SRC
 
+#+RESULTS:
+
 *** Looking at both spin up and spin down density of states
 In systems with spin polarization, electrons can either be spin up or spin down. We can also look at the density of states of both the spin up and spin down electrons. This is done below.
 

@@ -278,7 +278,9 @@ class Espresso(Calculator):
         else:
             raise EspressoUnknownState, 'I do not recognize the state of this directory'
 
-        if self.atoms == None:
+        if os.path.isdir('Ucalc'):
+            return
+        elif self.atoms == None:
             raise KeyError('No atoms object specified in {0}'.format(self.espressodir))
             
         # Store the old parameters read from files for restart purposes
@@ -800,7 +802,7 @@ class Espresso(Calculator):
         self.list_params['Hubbard_alpha'] = Hubbard_alpha
 
         return
-        
+                
     def read_output(self, outfile=None):
         """The purpose of this function is to read the output assign information
         from that output to the calculator object. We will read the entire output
@@ -825,6 +827,12 @@ class Espresso(Calculator):
             if line.lower().startswith('     hubbard energy'):
                 energy_hubbard = float(line.split()[-2])
                 return energy_hubbard * 13.605698066 # Rybergs to eV
+            return None
+
+        def read_processors(line):
+            if line.lower().startswith('     parallel version'):
+                processors = int(line.split()[-2])
+                return processors
             return None
 
         def read_total_force(line):
@@ -934,7 +942,7 @@ class Espresso(Calculator):
             return None
 
         def read_fermi_level(line):
-            if line.lower().startswith('     the fermi energy'):
+            if 'fermi' in line.lower():
                 fermi = float(line.split()[-2])
                 return fermi
             return None    
@@ -973,6 +981,10 @@ class Espresso(Calculator):
             if not energy_hubbard == None:
                 self.energy_hubbard = energy_hubbard
 
+            processors = read_processors(line)
+            if not processors == None:
+                self.run_params['ppn'] = processors
+            
             total_force = read_total_force(line)
             if not total_force == None:
                 self.total_force = total_force
