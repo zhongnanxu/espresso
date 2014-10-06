@@ -150,6 +150,7 @@ QE_PSEUDO = {'Ag':('Ag.pbe-d-rrkjus.UPF', 11),
              'Ni':('Ni.pbe-nd-rrkjus.UPF', 10),
              'N' :('N.pbe-rrkjus.UPF', 5),
              'O' :('O.pbe-rrkjus.UPF', 6),
+             'S' :('S.pbe-van_bm.UPF', 6),
              'Os':('Os.pbe-n-van.UPF', 8),
              'Pd':('Pd.pbe-n-rrkjus_psl.0.2.2.UPF', 10),
              'Pt':('Pt.pbe-nd-rrkjus.UPF', 10), # alt Pt.pbe-n-van.UPF

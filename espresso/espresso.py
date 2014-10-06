@@ -278,7 +278,7 @@ class Espresso(Calculator):
         else:
             raise EspressoUnknownState, 'I do not recognize the state of this directory'
 
-        if os.path.isdir('Ucalc'):
+        if os.path.isdir('Ucalc') and self.atoms == None:
             return
         elif self.atoms == None:
             raise KeyError('No atoms object specified in {0}'.format(self.espressodir))
