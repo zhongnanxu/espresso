@@ -19,6 +19,7 @@ class EspressoDos(object):
 
         self.efermi = efermi
         self.calc = Espresso()
+        PPs = self.calc.PPs
 
         # Check to see if the calculation is magnetic
         if self.calc.int_params['nspin'] == 2:
