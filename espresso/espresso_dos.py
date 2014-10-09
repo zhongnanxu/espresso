@@ -46,7 +46,7 @@ class EspressoDos(object):
         self.proj_dict = {}
         for sym in syms:
             PP_file = open(self.calc.string_params['pseudo_dir'] 
-                           + '/{0}'.format(ESPRESSO_PPs[sym][0]), 'r')
+                           + '/{0}'.format(PPs[sym][0]), 'r')
             lines = PP_file.readlines()
             self.proj_dict[sym] = []
             i = 0

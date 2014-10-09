@@ -374,7 +374,7 @@ class Espresso(Calculator):
         - symbols
         - initial magnetic moments
         - Hubbard U
-        - Hubbard alpha
+        - Hubbard alphas
         
         The Hubbard U and Hubbard alpha, when entered into the Espresso.calc
         as a keyword, must either be None or the same length as the atoms object.
