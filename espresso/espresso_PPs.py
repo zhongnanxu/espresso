@@ -156,6 +156,7 @@ QE_PSEUDO = {'Ag':('Ag.pbe-d-rrkjus.UPF', 11),
              'Pt':('Pt.pbe-nd-rrkjus.UPF', 10), # alt Pt.pbe-n-van.UPF
              'Rh':('Rh.pbe-nd-rrkjus.UPF', 9),
              'Ru':('Ru.pbe-n-van.UPF', 8),
+             'Ta':('Ta.pbe-nsp-van.UPF', 13),
              'Ti':('Ti.pbe-sp-van_ak.UPF', 12),
              'V' :('V.pbe-n-van.UPF', 5),
              'W' :('W.pbe.nsp-van.UPF', 14),
