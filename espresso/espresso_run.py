@@ -37,7 +37,6 @@ def run(self, series=False, jobid='jobid'):
         q='SBATCH'
         npflag='-n'
         subcmd='sbatch'
-        #SBATCH -j oe
         script = '''#!/bin/bash
 #SBATCH --time={0}
 #SBATCH --job-name={1}
@@ -84,7 +83,6 @@ def run(self, series=False, jobid='jobid'):
     if self.string_params['outdir'].startswith(os.path.dirname(ESPRESSORC['rundir'])):
         if self.run_params['qsys'] == 'pbs':
             script += "sed -i 's@${PBS_JOBID}@'${PBS_JOBID}'@' " + '{0}\n'.format(in_file)
-            # script += 'mkdir {0}\n'.format(self.run_params['rundir'])
         else:
             script += "sed -i 's@${SLURM_JOBID}@'${SLURM_JOBID}'@' " + '{0}\n'.format(in_file)
 
@@ -129,7 +127,7 @@ def run(self, series=False, jobid='jobid'):
 Espresso.run = run
 
 def run_series(name, calcs, walltime='50:00:00', ppn=1, nodes=1, processor=None, mem=None,
-               pools=1, save=True, test=False, update_pos=False, qsys='pbs'):
+               pools=1, save=True, test=False, update_pos=False, qsys='pbs', queue=None):
     '''The point of this function is to create a script that runs a bunch of
     calculations in series. After a calculation is done, it'll move the necessary
     restart output from the first calculation to the next. It takes a list of espresso
@@ -217,7 +215,7 @@ def run_series(name, calcs, walltime='50:00:00', ppn=1, nodes=1, processor=None,
 '''.format(walltime, name)
 
     # Now add pieces to the script depending on whether we need to
-    # pick the processor or the memory
+    # pick the processor, the memory, or the queue
     if processor == None:
         if qsys == 'pbs':
             script += '#PBS -l nodes={0:d}:ppn={1:d}\n'.format(nodes, ppn)
@@ -236,6 +234,13 @@ def run_series(name, calcs, walltime='50:00:00', ppn=1, nodes=1, processor=None,
             script += '#SBATCH --mem-per-cpu={0}\n'.format(1024*int(mem.lower().split('gb')[0]))
 
     script += '\n' # I just add this so there's a space after the #PBS commands
+
+    if queue != None:
+        if qsys == 'pbs':
+            script += '#PBS -q {0}\n'.format(self.run_params['queue'])
+        else:
+            script += '#SBATCH -p {0}\n'.format(self.run_params['queue'])
+
 
     # Now add on the parts of the script needed for the restarts.
     if update_pos == True:
@@ -261,7 +266,10 @@ def run_series(name, calcs, walltime='50:00:00', ppn=1, nodes=1, processor=None,
     script += 'cd {0}\n'.format(dirs[0])
     if len(done_dirs) != 0:
         script += '{0}\n'.format(update_atoms.format(dirs[0]))
-    script += "sed -i 's@${PBS_JOBID}@'${PBS_JOBID}'@' " + '{0}.in\n'.format(names[0])
+    if qsys == 'pbs':
+        script += "sed -i 's@${PBS_JOBID}@'${PBS_JOBID}'@' " + '{0}.in\n'.format(names[0])
+    else:
+        script += "sed -i 's@${SLURM_JOBID}@'${SLURM_JOBID}'@' " + '{0}\n'.format(names[0])
 
     # Run the job
     if (ppn == 1 and nodes == 1):
@@ -281,7 +289,10 @@ def run_series(name, calcs, walltime='50:00:00', ppn=1, nodes=1, processor=None,
         # Change into next directory and edit input file to reflect correct scratch
         script += '{0}\n'.format(update_atoms.format(d))
         script += 'cd {0}\n'.format(d)
-        script += "sed -i 's@${PBS_JOBID}@'${PBS_JOBID}'@' " + '{0}.in\n'.format(n)
+        if qsys = 'pbs':
+            script += "sed -i 's@${PBS_JOBID}@'${PBS_JOBID}'@' " + '{0}.in\n'.format(n)
+        else:
+            script += "sed -i 's@${SLURM_JOBID}@'${SLURM_JOBID}'@' " + '{0}\n'.format(n)
 
         # Run the job
         if (ppn == 1 and nodes == 1):
