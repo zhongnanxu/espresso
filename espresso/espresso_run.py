@@ -237,9 +237,9 @@ def run_series(name, calcs, walltime='50:00:00', ppn=1, nodes=1, processor=None,
 
     if queue != None:
         if qsys == 'pbs':
-            script += '#PBS -q {0}\n'.format(self.run_params['queue'])
+            script += '#PBS -q {0}\n'.format(queue)
         else:
-            script += '#SBATCH -p {0}\n'.format(self.run_params['queue'])
+            script += '#SBATCH -p {0}\n'.format(queue)
 
 
     # Now add on the parts of the script needed for the restarts.
