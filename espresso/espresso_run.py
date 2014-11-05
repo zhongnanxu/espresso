@@ -165,6 +165,7 @@ def run_series(name, calcs, walltime='50:00:00', ppn=1, nodes=1, processor=None,
         dirs = done_dirs + dirs
         names = done_names + names
         executables == done_executables + executables
+        done_dirs, done_names, done_executables = [], [], []
 
     cwd = os.getcwd()
     filename = os.path.basename(name)
@@ -269,7 +270,7 @@ def run_series(name, calcs, walltime='50:00:00', ppn=1, nodes=1, processor=None,
     if qsys == 'pbs':
         script += "sed -i 's@${PBS_JOBID}@'${PBS_JOBID}'@' " + '{0}.in\n'.format(names[0])
     else:
-        script += "sed -i 's@${SLURM_JOBID}@'${SLURM_JOBID}'@' " + '{0}\n'.format(names[0])
+        script += "sed -i 's@${SLURM_JOBID}@'${SLURM_JOBID}'@' " + '{0}.in\n'.format(names[0])
 
     # Run the job
     if (ppn == 1 and nodes == 1):
@@ -289,10 +290,10 @@ def run_series(name, calcs, walltime='50:00:00', ppn=1, nodes=1, processor=None,
         # Change into next directory and edit input file to reflect correct scratch
         script += '{0}\n'.format(update_atoms.format(d))
         script += 'cd {0}\n'.format(d)
-        if qsys = 'pbs':
+        if qsys == 'pbs':
             script += "sed -i 's@${PBS_JOBID}@'${PBS_JOBID}'@' " + '{0}.in\n'.format(n)
         else:
-            script += "sed -i 's@${SLURM_JOBID}@'${SLURM_JOBID}'@' " + '{0}\n'.format(n)
+            script += "sed -i 's@${SLURM_JOBID}@'${SLURM_JOBID}'@' " + '{0}.in\n'.format(n)
 
         # Run the job
         if (ppn == 1 and nodes == 1):
