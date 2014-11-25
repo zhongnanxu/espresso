@@ -35,7 +35,7 @@ class EspressoDos(object):
         natoms = self.calc.atoms.get_number_of_atoms()
 
         # First generate the DOS files if they are not there yet
-        if not os.path.exists(self.prefix + 'dos.out'):
+        if not os.path.exists(self.prefix + '.dos.out'):
             self.write_dos_input()
             dos_input = open(self.prefix + '.dos.in', 'r')
             dos_output = open(self.prefix + '.dos.out', 'w')

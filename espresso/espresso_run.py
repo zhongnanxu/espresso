@@ -280,8 +280,8 @@ def run_series(name, calcs, walltime='50:00:00', ppn=1, nodes=1, processor=None,
         script += s.format(calc.run_params['mpicmd'], np, executables[0], names[0], pools, npflag)
 
     # Copy completed job wavefunction from /scratch/${PBS_JOBID} back into working directory
-    script += 'cd {0}\n'.format(calc.string_params['outdir'])
     if save == True:
+        script += 'cd {0}\n'.format(calc.string_params['outdir'])
         s = 'cp -r pwscf.atwfc* pwscf.satwfc1* pwscf.wfc* pwscf.occup pwscf.igk* pwscf.save {0}\n'
         script += s.format(dirs[0])
             
@@ -303,12 +303,13 @@ def run_series(name, calcs, walltime='50:00:00', ppn=1, nodes=1, processor=None,
             script += s.format(calc.run_params['mpicmd'], np, r, n, pools, npflag)
 
         # Copy the wavefunction files back into home directory
-        script += 'cd {0}\n'.format(calc.string_params['outdir'])
-        
-        # We want the last wavefunction, which is useful for DOS calculations.
-        if (dirs[-1] == d or save == True):
+        if (save == True or calc.bool_params['wf_collect'] == True):
+            script += 'cd {0}\n'.format(calc.string_params['outdir'])
             s = 'cp -r pwscf.atwfc* pwscf.satwfc1* pwscf.wfc* pwscf.occup pwscf.igk* pwscf.save {0}\n'
             script += s.format(d)
+        
+    script += 'rm -fr {0}\n'.format(calc.string_params['outdir'])
+
 
     if test == False:
         run_file = open(filename + '.run', 'w')
