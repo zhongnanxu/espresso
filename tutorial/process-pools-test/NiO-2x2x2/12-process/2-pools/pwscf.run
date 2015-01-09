@@ -1,0 +1,14 @@
+#!/bin/bash
+#PBS -l walltime=160:00:00
+#PBS -j oe
+#PBS -N process-pools-test/NiO-2x2x2/12-process/2-pools
+#PBS -l nodes=1:ppn=12
+
+cd $PBS_O_WORKDIR
+sed -i 's@${PBS_JOBID}@'${PBS_JOBID}'@' pwscf.in
+mpirun -np 12 /home-research/zhongnanxu/opt/espresso-5.0.2/bin/pw.x -inp pwscf.in -npool 2 | tee pwscf.out
+
+mv /scratch/${PBS_JOBID}/* .
+rm -fr /scratch/${PBS_JOBID}
+eclean
+# end

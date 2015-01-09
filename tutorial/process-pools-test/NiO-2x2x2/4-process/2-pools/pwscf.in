@@ -1,0 +1,62 @@
+&CONTROL
+ tprnfor = .True.
+ outdir = '/scratch/1117722.gilgamesh.cheme.cmu.edu'
+ disk_io = 'none'
+ pseudo_dir = '/home-research/zhongnanxu/pseudopotentials/qe_pseudo'
+/
+&SYSTEM
+ ibrav = 0
+ nat = 16
+ ntyp = 3
+ nbnd = 192
+ tot_magnetization = 0
+ starting_magnetization(1) = 0.5
+ starting_magnetization(2) = -0.5
+ starting_magnetization(3) = 0
+ ecutwfc = 60
+ ecutrho = 600
+ occupations = 'smearing'
+ degauss = 0.02
+ smearing = 'mp'
+ nspin = 2
+ Hubbard_U(1) = 0
+ Hubbard_U(2) = 0
+ Hubbard_U(3) = 0
+ Hubbard_alpha(1) = 0
+ Hubbard_alpha(2) = 0
+ Hubbard_alpha(3) = 0
+/
+&ELECTRONS
+ conv_thr = 1e-08
+/
+&IONS
+/
+&CELL
+/
+K_POINTS {automatic}
+ 4 4 4 0 0 0
+ATOMIC_SPECIES
+ Ni0 58.6934 Ni.pbe-nd-rrkjus.UPF
+ Ni1 58.6934 Ni.pbe-nd-rrkjus.UPF
+ O2 15.9994 O.pbe-rrkjus.UPF
+ATOMIC_POSITIONS {crystal}
+ Ni0 0.00000 0.00000 0.00000
+ Ni0 0.50000 0.50000 0.00000
+ Ni0 0.50000 0.00000 0.50000
+ Ni0 0.00000 0.50000 0.50000
+ Ni1 0.50000 0.00000 0.00000
+ Ni1 0.00000 0.50000 0.00000
+ Ni1 0.00000 0.00000 0.50000
+ Ni1 0.50000 0.50000 0.50000
+ O2 0.25000 0.25000 0.25000
+ O2 0.75000 0.25000 0.25000
+ O2 0.25000 0.75000 0.25000
+ O2 0.25000 0.25000 0.75000
+ O2 0.25000 0.75000 0.75000
+ O2 0.75000 0.25000 0.75000
+ O2 0.75000 0.75000 0.25000
+ O2 0.75000 0.75000 0.75000
+CELL_PARAMETERS {angstrom}
+ -0.008 4.188 4.188
+ 4.188 -0.008 4.188
+ 4.188 4.188 -0.008

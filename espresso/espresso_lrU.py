@@ -16,9 +16,9 @@ def get_linear_response_Us(self, patoms, center=True, alphas=(-0.15, -0.07, 0, 0
     pert_atom_indexes = self.write_lrU_scf(patoms, sort, center)
     self.write_lrU_pert(pert_atom_indexes, alphas)    
     calc_done = self.run_lrU_series(pert_atom_indexes, alphas)
-
+    
     if calc_done:
-        self.calc_Us(patoms, alphas=alphas)
+        self.calc_Us(patoms, alphas=alphas, sort=sort)
         Us = self.read_Us()
         return Us
         
@@ -242,6 +242,30 @@ def run_lrU_series(self, p_atom_ind, alphas=(-0.15, -0.07, 0, 0.07, 0.15)):
 #SBATCH --job-name={1}
 '''.format(self.run_params['walltime'], self.run_params['jobname'])
 
+        # Now add pieces to the script depending on whether we need to
+        # pick the processor or the memory
+        if self.run_params['processor'] == None:
+            if self.run_params['qsys'] == 'pbs':
+                s = '#PBS -l nodes={0:d}:ppn={1:d}\n'
+                script += s.format(self.run_params['nodes'],
+                                   self.run_params['ppn'])
+            else:
+                s = '#SBATCH --nodes={0:d} --ntasks-per-node={1:d}\n'
+                script += s.format(self.run_params['nodes'], 
+                                   self.run_params['ppn'])
+        else:
+            if self.run_params['qsys'] == 'pbs':
+                s = '#PBS -l nodes={0:d}:ppn={1:d}:{2}\n'
+                script += s.format(self.run_params['nodes'],
+                                   self.run_params['ppn'],
+                                   self.run_params['processor'])
+            else:
+                s = '#SBATCH --nodes={0:d} --ntasks-per-node={1:d} --nodelist={2}\n'
+                script += s.format(self.run_params['nodes'],
+                                   self.run_params['ppn'],
+                                   self.run_params['processor'])
+
+            
         if self.run_params['mem'] != None:
             if self.run_params['qsys'] == 'pbs':
                 s = '#PBS -l mem={0}\n'
@@ -324,13 +348,12 @@ def run_lrU_series(self, p_atom_ind, alphas=(-0.15, -0.07, 0, 0.07, 0.15)):
 
 Espresso.run_lrU_series = run_lrU_series
 
-def calc_Us(self, patoms, alphas=(-0.15, -0.07, 0, 0.07, 0.15), test=False, sc=1):
+def calc_Us(self, patoms, alphas=(-0.15, -0.07, 0, 0.07, 0.15), test=False, sort=None, sc=1):
     '''The purpose of this program is to take the data out of the
     already run calculations and feed it to the r.x program, which
     calculates the linear response U. This function can calculate Us
     in systems with multiple atoms perturbed'''
 
-    sort = self.initialize_lrU(patoms)
     calc_name = os.path.basename(self.espressodir)
 
     if not isdir ('Ucalc'):
@@ -381,12 +404,18 @@ def calc_Us(self, patoms, alphas=(-0.15, -0.07, 0, 0.07, 0.15), test=False, sc=1
 
         # Write out the dn files
         os.chdir(cwd)
-        dnda = open('Ucalc/dnda', 'a')
+
+        # We want to keep appending to this file
+        if i == 0:
+            dnda = open('Ucalc/dnda', 'w')
+        else:
+            dnda = open('Ucalc/dnda', 'a')
+            
         for atom in range(len(allatoms)):
             list_0, list_f = [], []
-            for i, alpha in enumerate(alphas):
-                list_0.append(alpha_0s[i][atom])
-                list_f.append(alpha_fs[i][atom])
+            for j, alpha in enumerate(alphas):
+                list_0.append(alpha_0s[j][atom])
+                list_f.append(alpha_fs[j][atom])
             dn0_file = open('Ucalc/dn0.{0}.da.{1}.dat'.format(atom + 1,
                                                               sort.index(key) + 1), 'w')
             for alpha, occ in zip(alphas, list_0):

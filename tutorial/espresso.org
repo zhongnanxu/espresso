@@ -443,6 +443,99 @@ plt.show()
 [[./figures/TiO2-DOS.png]]
 
 * Parameter optimization
+** Optimizing pools, ppn, and pools/ppn ratio
+#+BEGIN_SRC python
+from ase import Atom, Atoms
+from espresso import *
+from ase.visualize import view
+import matplotlib.pyplot as plt
+import numpy as np
+import ase_addons.bulk
+from ase.utils.eos import EquationOfState
+from ase.lattice.spacegroup import crystal
+from ase_addons.bulk import rhombo_rocksalt
+
+# Set QE PPs
+Espresso.PPs = QE_PSEUDO
+ESPRESSORC['PPpath'] = '/home-research/zhongnanxu/pseudopotentials/qe_pseudo'
+
+
+
+#          Processors  Pools
+params = [[1,          1],
+          [2,          1],
+          [4,          1],
+          [4,          2],
+          [8,          1],
+          [8,          2],
+          [8,          4],
+          [12,         1],
+          [12,         2],
+          [12,         3],
+          [12,         4],
+          [12,         6],
+          [16,         1],
+          [16,         2],
+          [16,         4],
+          [16,         8]]
+
+bulk = rhombo_rocksalt(['Ni', 'O'], a=2.09, b=4.188, mags=(0.5, 0), primitive=False)
+ppns, ppns_time = [], []
+
+for ppn, pools in params:
+    with Espresso('process-pools-test/NiO-2x2x2/{0}-process/{1}-pools'.format(ppn, pools),
+                  atoms=bulk,
+                  # CONTROL
+                  disk_io='none',
+                  # SYSTEM
+                  ecutwfc=60.0,
+                  ecutrho=600.0,
+                  occupations='smearing',
+                  tot_magnetization=0,
+                  smearing='mp',
+                  degauss=0.02,
+                  nspin=2,
+                  # ELECTRONS
+                  conv_thr=1e-8,
+                  # CELL
+                  kpts=(4, 4, 4),
+                  walltime='160:00:00', ppn=ppn, pools=pools) as calc:
+        try:
+            calc.calculate()
+            time = calc.get_cputime()
+            print ppn, time
+            plt.plot(ppn, time, marker='$%d$' % (ppn / pools), ms=12, c='k')
+        except (EspressoSubmitted, EspressoRunning):
+            print calc.espressodir, 'running'
+        except (EspressoNotConverged):
+            print calc.espressodir, 'not converged'
+
+plt.xlim(1, 17)
+plt.show()
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+process-pools-test/NiO-2x2x2/1-process/1-pools running
+process-pools-test/NiO-2x2x2/2-process/1-pools running
+4 3115.0
+4 3064.3
+8 2066.8
+8 1654.3
+8 1723.2
+12 1585.8
+12 2158.1
+12 1289.2
+12 1255.2
+12 1478.5
+16 1354.7
+16 962.0
+16 1056.9
+16 1316.2
+#+end_example
+
+From these results, it's clear one wants to keep the ppn / pools between 4 and 8. For 16 nodes, seeting pools to 2 seems alright.
+
 * Troubleshooting
 
 bibliography:../../Dropbox/bibliography/library.bib
